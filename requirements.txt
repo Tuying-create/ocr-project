@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+Flask-SQLAlchemy
+rapidocr_onnxruntime
+opencv-python-headless
+openpyxl
+gunicorn

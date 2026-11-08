@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>患者数据录入</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 16px; }
+        .container { max-width: 480px; margin: 0 auto; }
+        h1 { font-size: 20px; color: #1a3a5c; margin-bottom: 16px; }
+        h2 { font-size: 15px; color: #1a3a5c; margin: 16px 0 8px 0; }
+        .upload-area {
+            border: 2px dashed #d0d5dd; border-radius: 12px;
+            padding: 32px 16px; text-align: center; cursor: pointer;
+            background: #fafbfc; margin-bottom: 16px;
+        }
+        .upload-area .icon { font-size: 48px; display: block; margin-bottom: 8px; }
+        #fileInput { display: none; }
+        .loading { display: none; text-align: center; padding: 24px 0; }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #e8ecf0;
+            border-top: 4px solid #07c160; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .basic-item {
+            background: white; border-radius: 8px; padding: 10px 12px;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .basic-item label { flex: 1; font-size: 13px; color: #1a3a5c; }
+        .basic-item input {
+            flex: 1.5; padding: 8px; border: 1px solid #d0d5dd;
+            border-radius: 6px; font-size: 14px;
+        }
+        .review-item {
+            background: white; border-radius: 8px; padding: 10px 12px;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .review-item label { flex: 1; font-size: 14px; color: #1a3a5c; }
+        .review-item input, .review-item select {
+            flex: 1.2; padding: 8px; border: 1px solid #d0d5dd;
+            border-radius: 6px; font-size: 14px;
+        }
+        .review-item.locked {
+            background: #e8f5e9;
+        }
+        .review-item.locked input, .review-item.locked select {
+            background: #f1f8e9;
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .review-item .unit { font-size: 12px; color: #8c8f9c; }
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+        }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-secondary { background: #e8ecf0; color: #1a3a5c; }
+        .btn-warning { background: #ff9800; color: white; }
+        .btn-unlock { background: #e74c3c; color: white; }
+        .raw-text {
+            background: #f8f9fb; border-radius: 8px; padding: 12px;
+            font-size: 12px; color: #5a5d6b; max-height: 150px;
+            overflow-y: auto; white-space: pre-wrap; margin-top: 12px;
+        }
+        .status-bar {
+            background: #e8f4ff; border-radius: 8px; padding: 10px 12px;
+            font-size: 13px; color: #1a3a5c; margin-bottom: 12px;
+        }
+        .select-patient {
+            background: #fff3e0; border-radius: 8px; padding: 12px;
+            margin-bottom: 16px; border: 1px solid #ffcc80;
+        }
+        .select-patient label {
+            font-size: 13px; color: #e65100; display: block; margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .select-patient select {
+            width: 100%; padding: 10px; border: 1px solid #d0d5dd;
+            border-radius: 8px; font-size: 14px; background: white;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📷 患者数据录入</h1>
+
+    <div class="select-patient" id="selectPatientBox" style="display:none;">
+        <label>📋 从待录入列表选择患者</label>
+        <select id="patientSelect" onchange="onSelectPatient()">
+            <option value="">-- 请选择 --</option>
+        </select>
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+        <span class="icon">📷</span>
+        <p>点击拍照或选择图片</p>
+        <span style="color:#8c8f9c;font-size:13px;">可多次上传，结果会累加</span>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" <input type="file" id="fileInput" accept="image/*" multiple> multiple>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>识别中，请稍候...</p>
+    </div>
+
+    <div id="reviewArea" style="display:none;">
+        <div class="status-bar" id="statusBar">已上传 0 张图片</div>
+
+        <h2>👤 住院号</h2>
+        <div class="basic-item">
+            <label>住院号</label>
+            <input type="text" id="basic_hospital_id" placeholder="请输入住院号">
+        </div>
+
+        <h2>📊 化验指标 <span style="font-size:12px;color:#8c8f9c;font-weight:normal;">（绿色🔒为已保存，不可修改）</span></h2>
+        <div id="reviewList"></div>
+
+        <button class="btn btn-primary" onclick="savePatient()">✅ 确认保存</button>
+        <button class="btn btn-unlock" onclick="unlockAll()">🔓 解锁全部字段</button>
+        <button class="btn btn-warning" onclick="clearCurrent()">🗑️ 清空</button>
+        <button class="btn btn-secondary" onclick="backToProject()">返回项目</button>
+
+        <div class="raw-text" id="rawText"></div>
+    </div>
+</div>
+
+<script>
+    const pathParts = location.pathname.split('/');
+    let projectId = null;
+    let patientId = null;
+    let currentPatientId = null;
+    let savedFieldIds = new Set();
+
+    if (location.pathname.includes('/patient/') && location.pathname.includes('/edit')) {
+        patientId = pathParts[2];
+    } else {
+        projectId = pathParts[2];
+    }
+
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const loading = document.getElementById('loading');
+    const reviewArea = document.getElementById('reviewArea');
+    const reviewList = document.getElementById('reviewList');
+    const rawText = document.getElementById('rawText');
+    const statusBar = document.getElementById('statusBar');
+    const patientSelect = document.getElementById('patientSelect');
+    const selectPatientBox = document.getElementById('selectPatientBox');
+
+    let currentValues = {};
+    let currentRawText = '';
+    let uploadCount = 0;
+
+    function renderBasicFields(data = {}) {
+        const input = document.getElementById('basic_hospital_id');
+        if (input) input.value = data['hospital_id'] || '';
+    }
+
+    function syncHospitalId() {
+        const hospitalId = document.getElementById('basic_hospital_id')?.value || '';
+        if (!hospitalId) return;
+        Object.values(currentValues).forEach(item => {
+            if (item.field_name === '住院号') {
+                item.value = hospitalId;
+            }
+        });
+    }
+
+    function renderReview() {
+        const items = Object.values(currentValues);
+        if (items.length === 0) {
+            reviewList.innerHTML = '<div style="color:#8c8f9c;text-align:center;padding:12px;">暂无识别到的指标</div>';
+            return;
+        }
+        reviewList.innerHTML = items.map(item => {
+            let inputHtml = '';
+            const type = item.field_type || 'number';
+            const isLocked = savedFieldIds.has(item.field_id);
+
+            if (isLocked) {
+                inputHtml = `<input type="text" value="${item.value}" readonly style="background:#f1f8e9;color:#2e7d32;font-weight:600;">`;
+            } else if (type === 'yesno') {
+                const isYes = item.value === '是';
+                const isNo = item.value === '否';
+                inputHtml = `
+                    <select data-field-id="${item.field_id}">
+                        <option value="" ${!isYes && !isNo ? 'selected' : ''}>未选</option>
+                        <option value="否" ${isNo ? 'selected' : ''}>否</option>
+                        <option value="是" ${isYes ? 'selected' : ''}>是</option>
+                    </select>
+                `;
+            } else {
+                inputHtml = `<input type="text" value="${item.value}" data-field-id="${item.field_id}">`;
+            }
+
+            return `
+                <div class="review-item ${isLocked ? 'locked' : ''}">
+                    <label>${item.field_name} <span class="unit">${item.field_unit || ''}</span>${isLocked ? ' 🔒' : ''}</label>
+                    ${inputHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function loadPendingPatients() {
+        if (!projectId) return;
+        try {
+            const res = await fetch(`/api/project/${projectId}/patients`);
+            const data = await res.json();
+            if (data.patients && data.patients.length > 0) {
+                const withHospital = data.patients.filter(p => p.hospital_id);
+                if (withHospital.length > 0) {
+                    patientSelect.innerHTML = '<option value="">-- 请选择 --</option>' +
+                        withHospital.map(p => `<option value="${p.id}">${p.hospital_id}</option>`).join('');
+                    selectPatientBox.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            console.log('加载患者列表失败', err);
+        }
+    }
+
+    function buildCurrentValues(proj, p) {
+        currentValues = {};
+        savedFieldIds = new Set();
+
+        proj.fields.forEach(f => {
+            const existingValue = p.values[f.id] || '';
+            currentValues[f.id] = {
+                field_id: f.id,
+                field_name: f.field_name,
+                field_unit: f.field_unit,
+                field_type: f.field_type || 'number',
+                value: existingValue
+            };
+            if (existingValue && existingValue.trim() !== '') {
+                savedFieldIds.add(f.id);
+            }
+        });
+    }
+
+    async function onSelectPatient() {
+        const pid = patientSelect.value;
+        if (!pid) return;
+
+        const res = await fetch('/api/patient/' + pid);
+        const p = await res.json();
+
+        currentPatientId = p.id;
+        renderBasicFields(p);
+        reviewArea.style.display = 'block';
+
+        if (!projectId) projectId = p.project_id;
+        const projRes = await fetch('/api/project/' + (projectId || p.project_id));
+        const proj = await projRes.json();
+
+        buildCurrentValues(proj, p);
+        syncHospitalId();
+        renderReview();
+        statusBar.textContent = `已选择患者：${p.hospital_id || p.patient_code}，可继续补充指标`;
+        reviewArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) uploadImages(this.files);
+        this.value = '';
+    });
+
+    async function uploadImages(files) {
+        loading.style.display = 'block';
+
+        const formData = new FormData();
+        for (let f of files) formData.append('images', f);
+
+        try {
+            const res = await fetch(`/api/project/${projectId}/patient/upload`, {
+                method: 'POST', body: formData
+            });
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (data.success) {
+                data.data.forEach(item => {
+                    if (savedFieldIds.has(item.field_id)) {
+                        return;
+                    }
+                    currentValues[item.field_id] = item;
+                });
+                currentRawText += data.raw_text + '\n';
+                uploadCount++;
+
+                if (reviewArea.style.display === 'none') {
+                    reviewArea.style.display = 'block';
+                }
+
+                syncHospitalId();
+                renderReview();
+                statusBar.textContent = `已上传 ${uploadCount} 张图片，识别到 ${Object.keys(currentValues).length} 个字段（已保存 ${savedFieldIds.size} 个）`;
+                rawText.textContent = '原始文本：\n' + currentRawText;
+                reviewArea.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                alert('识别失败：' + (data.error || ''));
+            }
+        } catch (err) {
+            loading.style.display = 'none';
+            alert('网络错误：' + err.message);
+        }
+    }
+
+    async function savePatient() {
+        const basic = {};
+        basic['hospital_id'] = document.getElementById('basic_hospital_id')?.value.trim() || '';
+
+        syncHospitalId();
+
+        const values = [];
+        document.querySelectorAll('#reviewList input, #reviewList select').forEach(el => {
+            if (el.readOnly) return;
+            if (el.value.trim() === '') return;
+            values.push({
+                field_id: parseInt(el.dataset.fieldId),
+                value: el.value.trim()
+            });
+        });
+
+        const payload = {
+            basic: basic,
+            values: values
+        };
+
+        if (currentPatientId) payload.patient_id = currentPatientId;
+
+        const res = await fetch(`/api/project/${projectId}/patient/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert('保存成功！');
+            if (currentPatientId) {
+                await onSelectPatientReload();
+            } else {
+                location.href = '/project/' + projectId;
+            }
+        } else {
+            alert('保存失败：' + (data.error || ''));
+        }
+    }
+
+    async function onSelectPatientReload() {
+        const res = await fetch('/api/patient/' + currentPatientId);
+        const p = await res.json();
+        renderBasicFields(p);
+
+        const projRes = await fetch('/api/project/' + (projectId || p.project_id));
+        const proj = await projRes.json();
+
+        buildCurrentValues(proj, p);
+        syncHospitalId();
+        renderReview();
+        statusBar.textContent = `已保存 ${savedFieldIds.size} 个字段，可继续拍照补充`;
+    }
+
+    function unlockAll() {
+        if (!confirm('确定要解锁所有字段吗？解锁后可以修改已保存的值。')) return;
+        savedFieldIds = new Set();
+        renderReview();
+        statusBar.textContent = '🔓 已解锁全部字段，可修改后重新保存';
+    }
+
+    function clearCurrent() {
+        currentValues = {};
+        currentRawText = '';
+        uploadCount = 0;
+        currentPatientId = null;
+        savedFieldIds = new Set();
+        document.getElementById('basic_hospital_id').value = '';
+        document.getElementById('reviewList').innerHTML = '';
+        document.getElementById('rawText').textContent = '';
+        reviewArea.style.display = 'none';
+        patientSelect.value = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function backToProject() {
+        location.href = '/project/' + (projectId || 1);
+    }
+
+    async function loadPatient() {
+        const res = await fetch('/api/patient/' + patientId);
+        const p = await res.json();
+        projectId = p.project_id;
+        currentPatientId = p.id;
+
+        renderBasicFields(p);
+        reviewArea.style.display = 'block';
+
+        const projRes = await fetch('/api/project/' + projectId);
+        const proj = await projRes.json();
+
+        buildCurrentValues(proj, p);
+        syncHospitalId();
+        renderReview();
+        statusBar.textContent = `已保存 ${savedFieldIds.size} 个字段，可继续拍照补充`;
+    }
+
+    if (patientId) {
+        loadPatient();
+    } else {
+        loadPendingPatients();
+    }
+</script>
+</body>
+</html>

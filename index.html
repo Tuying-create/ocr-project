@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>化验单识别</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 16px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 24px;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a3a5c;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8c8f9c;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #d0d5dd;
+            border-radius: 12px;
+            padding: 32px 16px;
+            text-align: center;
+            cursor: pointer;
+            background: #fafbfc;
+            margin-bottom: 16px;
+            transition: border-color 0.3s;
+        }
+        .upload-area:active { border-color: #07c160; }
+        .upload-area .icon { font-size: 48px; display: block; margin-bottom: 8px; }
+        .upload-area p { color: #5a5d6b; font-size: 15px; }
+        .upload-area .hint { color: #8c8f9c; font-size: 13px; margin-top: 4px; }
+        #fileInput { display: none; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-primary:disabled { background: #a8d5b8; cursor: not-allowed; }
+        .btn-secondary { background: #e8ecf0; color: #1a3a5c; margin-top: 10px; }
+        .loading { display: none; text-align: center; padding: 24px 0; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #e8ecf0;
+            border-top: 4px solid #07c160;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading p { color: #5a5d6b; font-size: 14px; }
+        .result-area { display: none; margin-top: 16px; }
+        .result-title { font-size: 16px; font-weight: 600; color: #1a3a5c; margin-bottom: 12px; }
+        .result-item {
+            display: flex; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid #f0f2f5;
+            font-size: 14px;
+        }
+        .result-item .name { color: #1a3a5c; }
+        .result-item .value { font-weight: 600; color: #1a3a5c; }
+        .result-count { color: #8c8f9c; font-size: 13px; text-align: center; margin-top: 8px; }
+        .raw-text {
+            margin-top: 16px;
+            background: #f8f9fb;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #5a5d6b;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 12px;
+            background: #fde8e8;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+        .footer { text-align: center; color: #b8bcc8; font-size: 12px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📋 化验单识别</h1>
+    <p class="subtitle">拍照自动提取数据</p>
+
+    <div class="upload-area" id="uploadArea">
+        <span class="icon">📷</span>
+        <p>点击拍照或选择图片</p>
+        <span class="hint">支持 JPG、PNG 格式</span>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment">
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>识别中，请稍候...</p>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <div class="result-area" id="resultArea">
+        <div class="result-title">📊 识别结果</div>
+        <div id="resultList"></div>
+        <div class="result-count" id="resultCount"></div>
+        <button class="btn btn-secondary" id="exportBtn" style="display:none;">📥 导出 Excel (CSV)</button>
+        <div class="raw-text" id="rawText"></div>
+    </div>
+
+    <div class="footer">OCR API v1.0</div>
+</div>
+
+<script>
+    const API_BASE = 'http://10.103.13.54:5000';
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const loading = document.getElementById('loading');
+    const resultArea = document.getElementById('resultArea');
+    const resultList = document.getElementById('resultList');
+    const resultCount = document.getElementById('resultCount');
+    const rawText = document.getElementById('rawText');
+    const errorDiv = document.getElementById('error');
+    const exportBtn = document.getElementById('exportBtn');
+
+    let currentData = [];
+    let currentRaw = '';
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function(e) {
+        const file = this.files[0];
+        if (file) uploadImage(file);
+        this.value = '';
+    });
+
+    async function uploadImage(file) {
+        loading.style.display = 'block';
+        resultArea.style.display = 'none';
+        errorDiv.style.display = 'none';
+        exportBtn.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await fetch(API_BASE + '/ocr', { method: 'POST', body: formData });
+            const data = await response.json();
+            loading.style.display = 'none';
+
+            if (data.success) {
+                currentData = data.data || [];
+                currentRaw = data.raw_text || '';
+                displayResult(data);
+            } else {
+                showError(data.error || '识别失败');
+            }
+        } catch (err) {
+            loading.style.display = 'none';
+            showError('连接失败，请确保服务已启动');
+        }
+    }
+
+    function displayResult(data) {
+        resultList.innerHTML = '';
+        if (data.data && data.data.length > 0) {
+            data.data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `<span class="name">${item.项目}</span><span class="value">${item.结果}</span>`;
+                resultList.appendChild(div);
+            });
+            resultCount.textContent = '共识别 ' + data.data.length + ' 项指标';
+            exportBtn.style.display = 'block';
+        } else {
+            resultList.innerHTML = '<p style="text-align:center;color:#8c8f9c;">未识别到已知指标</p>';
+            resultCount.textContent = '请查看原始文本';
+        }
+        if (data.raw_text) {
+            rawText.textContent = '原始文本：\n' + data.raw_text;
+            rawText.style.display = 'block';
+        }
+        resultArea.style.display = 'block';
+        resultArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showError(msg) {
+        errorDiv.textContent = '❌ ' + msg;
+        errorDiv.style.display = 'block';
+    }
+
+    exportBtn.addEventListener('click', function() {
+        if (!currentData.length) return alert('没有数据');
+        let csv = '项目,结果\n';
+        currentData.forEach(item => { csv += `"${item.项目}","${item.结果}"\n`; });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = '化验结果.csv';
+        link.click();
+    });
+</script>
+</body>
+</html>
