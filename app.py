@@ -7,6 +7,7 @@ import datetime
 import threading
 import time
 import cv2
+import xlrd
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
 
@@ -23,36 +24,14 @@ with app.app_context():
     db.create_all()
 
 UPLOAD_FOLDER = 'uploads'
-
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 
-# ========== 字段类型判断 ==========
-
-TEXT_INPUT_FIELDS = ['民族', '职业', '入院时间', '治疗方案']
-YESNO_FIELDS = [
-    '头痛', '视朦', '发热', '肢体肌力异常', '意识障碍', '脑膜刺激征',
-    '高血压', '心肌损害', '低蛋白血症', '脑膜炎',
-    '脑炎，累及脑实质'
-]
-
-
-def get_field_type(field_name):
-    name = field_name.strip().lstrip('*').strip()
-    if name in TEXT_INPUT_FIELDS:
-        return 'text'
-    if name in YESNO_FIELDS:
-        return 'yesno'
-    return 'number'
-
-
 # ========== OCR 引擎 ==========
-
 _ocr_engine = None
 _ocr_loading = False
 _ocr_lock = threading.Lock()
-
 
 def _load_ocr():
     global _ocr_engine, _ocr_loading
@@ -65,7 +44,6 @@ def _load_ocr():
     finally:
         _ocr_loading = False
 
-
 def get_ocr():
     global _ocr_loading
     with _ocr_lock:
@@ -76,7 +54,6 @@ def get_ocr():
             t = threading.Thread(target=_load_ocr, daemon=True)
             t.start()
     return None
-
 
 def ocr_image(image_path):
     try:
@@ -110,7 +87,6 @@ def ocr_image(image_path):
 
 
 # ========== OCR API ==========
-
 @app.route('/ocr', methods=['POST'])
 def ocr_api():
     if 'image' not in request.files:
@@ -134,7 +110,6 @@ def health_check():
 
 
 # ========== 项目 API ==========
-
 @app.route('/api/projects', methods=['GET'])
 def list_projects():
     projects = Project.query.order_by(Project.id.desc()).all()
@@ -163,12 +138,13 @@ def create_project():
     fields = data.get('fields', [])
     for i, f in enumerate(fields):
         field_name = f.get('field_name', '').strip()
+        f_type = f.get('field_type', 'number') 
         field = ProjectField(
             project_id=project.id,
             field_name=field_name,
             field_unit=f.get('field_unit', '').strip(),
             sort_order=i,
-            field_type=get_field_type(field_name)
+            field_type=f_type
         )
         db.session.add(field)
     db.session.commit()
@@ -205,8 +181,31 @@ def delete_project(project_id):
     return jsonify({'success': True})
 
 
-# ========== 解析 Excel 表头 ==========
+@app.route('/api/project/<int:project_id>/stats', methods=['GET'])
+def get_project_stats(project_id):
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({'error': '项目不存在'}), 404
+    
+    patients = Patient.query.filter_by(project_id=project_id).all()
+    total_patients = len(patients)
+    
+    recorded_patients = 0
+    total_values = 0
+    for p in patients:
+        vals = [v.value for v in p.values if v.value and v.value.strip()]
+        if vals:
+            recorded_patients += 1
+            total_values += len(vals)
+            
+    return jsonify({
+        'total_patients': total_patients,
+        'recorded_patients': recorded_patients,
+        'total_values': total_values
+    })
 
+
+# ========== 解析 Excel 表头 ==========
 @app.route('/api/parse_excel_header', methods=['POST'])
 def parse_excel_header():
     if 'excel' not in request.files:
@@ -215,27 +214,38 @@ def parse_excel_header():
     if file.filename == '':
         return jsonify({'error': '文件名为空'}), 400
 
-    ext = os.path.splitext(file.filename)[1]
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.xls', '.xlsx']:
+        return jsonify({'error': '只支持 .xls 或 .xlsx 格式'}), 400
+
     filename = str(uuid.uuid4()) + ext
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
     try:
-        wb = load_workbook(filepath, read_only=True)
-        ws = wb.active
         headers = []
-        for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
-            for cell in row:
-                if cell is not None:
-                    headers.append(str(cell).strip())
-        wb.close()
+        if ext == '.xls':
+            book = xlrd.open_workbook(filepath)
+            sh = book.sheet_by_index(0)
+            for col_idx in range(sh.ncols):
+                cell_value = sh.cell_value(0, col_idx)
+                if cell_value:
+                    headers.append(str(cell_value).strip())
+        else:
+            wb = load_workbook(filepath, read_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
+                for cell in row:
+                    if cell is not None:
+                        headers.append(str(cell).strip())
+            wb.close()
+            
         return jsonify({'success': True, 'headers': headers})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'解析失败: {str(e)}'}), 500
 
 
 # ========== 导入患者名单 ==========
-
 @app.route('/api/project/<int:project_id>/import_patients', methods=['POST'])
 def import_patients(project_id):
     project = Project.query.get(project_id)
@@ -248,30 +258,38 @@ def import_patients(project_id):
     if file.filename == '':
         return jsonify({'error': '文件名为空'}), 400
 
-    ext = os.path.splitext(file.filename)[1]
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.xls', '.xlsx']:
+        return jsonify({'error': '只支持 .xls 或 .xlsx 格式'}), 400
+
     filename = str(uuid.uuid4()) + ext
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
     try:
-        wb = load_workbook(filepath, read_only=True)
-        ws = wb.active
+        hospital_ids = []
+        if ext == '.xls':
+            book = xlrd.open_workbook(filepath)
+            sh = book.sheet_by_index(0)
+            for row_idx in range(1, sh.nrows):
+                cell_value = sh.cell_value(row_idx, 0)
+                if cell_value:
+                    hospital_ids.append(str(cell_value).strip())
+        else:
+            wb = load_workbook(filepath, read_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if row and row[0] is not None:
+                    hospital_ids.append(str(row[0]).strip())
+            wb.close()
 
         count = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row or row[0] is None:
-                continue
-            hospital_id = str(row[0]).strip()
+        for hospital_id in hospital_ids:
             if not hospital_id:
                 continue
-
-            existing = Patient.query.filter_by(
-                project_id=project_id,
-                hospital_id=hospital_id
-            ).first()
+            existing = Patient.query.filter_by(project_id=project_id, hospital_id=hospital_id).first()
             if existing:
                 continue
-
             patient = Patient(
                 project_id=project_id,
                 patient_code='',
@@ -282,14 +300,12 @@ def import_patients(project_id):
             count += 1
 
         db.session.commit()
-        wb.close()
         return jsonify({'success': True, 'count': count})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'导入失败: {str(e)}'}), 500
 
 
 # ========== 患者数据 API ==========
-
 @app.route('/api/project/<int:project_id>/patient/upload', methods=['POST'])
 def upload_patient(project_id):
     project = Project.query.get(project_id)
@@ -317,6 +333,26 @@ def upload_patient(project_id):
 
     if not all_text:
         return jsonify({'error': 'OCR识别失败'}), 500
+
+    # 新增：识别患者基本信息
+    basic_info = {
+        'hospital_id': '',
+        'name': '',
+        'gender': '',
+        'age': ''
+    }
+
+    match = re.search(r'住院号[：:\s]*([A-Za-z0-9]+)', all_text)
+    if match: basic_info['hospital_id'] = match.group(1)
+    
+    match = re.search(r'姓名[：:\s]*([^\s\n]+)', all_text)
+    if match: basic_info['name'] = match.group(1).strip()
+    
+    match = re.search(r'性别[：:\s]*([男女])', all_text)
+    if match: basic_info['gender'] = match.group(1)
+    
+    match = re.search(r'年龄[：:\s]*(\d+)', all_text)
+    if match: basic_info['age'] = match.group(1)
 
     fields = sorted(project.fields, key=lambda x: x.sort_order)
     matched = []
@@ -365,7 +401,7 @@ def upload_patient(project_id):
 
     for f in fields:
         value = ''
-        field_type = f.field_type or get_field_type(f.field_name)
+        field_type = f.field_type or 'number'
 
         if field_type == 'yesno':
             if f.field_name in all_text:
@@ -414,6 +450,7 @@ def upload_patient(project_id):
     return jsonify({
         'success': True,
         'raw_text': all_text,
+        'basic_info': basic_info,  # 返回基本信息
         'data': matched,
         'count': len([m for m in matched if m['value']])
     })
@@ -439,8 +476,7 @@ def save_patient(project_id):
     else:
         patient_code = data.get('patient_code', '').strip()
         if not patient_code:
-            count = Patient.query.filter_by(project_id=project_id).count()
-            patient_code = f'P{count + 1:03d}'
+            patient_code = basic.get('hospital_id', '') or f'P{Patient.query.filter_by(project_id=project_id).count() + 1:03d}'
 
         patient = Patient(
             project_id=project_id,
@@ -540,7 +576,7 @@ def list_patients(project_id):
     if not project:
         return jsonify({'error': '项目不存在'}), 404
 
-    patients = Patient.query.filter_by(project_id=project_id).order_by(Patient.id.asc()).all()
+    patients = Patient.query.filter_by(project_id=project_id).order_by(Patient.id.desc()).all()
     fields = sorted(project.fields, key=lambda x: x.sort_order)
 
     result = []
@@ -553,10 +589,9 @@ def list_patients(project_id):
             'patient_code': p.patient_code,
             'hospital_id': p.hospital_id,
             'name': p.name,
-            'gender': p.gender,
-            'age': p.age,
+            'created_at': p.created_at,
             'has_data': len([v for v in values.values() if v and v.strip()]) > 0,
-            'values': values
+            'values_count': len([v for v in values.values() if v and v.strip()])
         })
     return jsonify({
         'patients': result,
@@ -565,7 +600,6 @@ def list_patients(project_id):
 
 
 # ========== 导出 Excel ==========
-
 @app.route('/api/project/<int:project_id>/export', methods=['GET'])
 def export_project(project_id):
     project = Project.query.get(project_id)
@@ -601,36 +635,33 @@ def export_project(project_id):
 
 
 # ========== 页面路由 ==========
-
 @app.route('/')
 def index():
     return send_from_directory('templates', 'projects.html')
-
 
 @app.route('/projects')
 def projects_page():
     return send_from_directory('templates', 'projects.html')
 
+@app.route('/dashboard')
+def dashboard_page():
+    return send_from_directory('templates', 'dashboard.html')
 
 @app.route('/project/new')
 def project_new_page():
     return send_from_directory('templates', 'project_new.html')
 
-
 @app.route('/project/<int:project_id>')
 def project_detail_page(project_id):
     return send_from_directory('templates', 'project_detail.html')
-
 
 @app.route('/project/<int:project_id>/patient/upload')
 def patient_upload_page(project_id):
     return send_from_directory('templates', 'patient_upload.html')
 
-
 @app.route('/patient/<int:patient_id>/edit')
 def patient_edit_page(patient_id):
     return send_from_directory('templates', 'patient_upload.html')
-
 
 @app.route('/ocr')
 def ocr_page():
@@ -638,5 +669,5 @@ def ocr_page():
 
 
 if __name__ == '__main__':
-    print("OCR API starting...")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

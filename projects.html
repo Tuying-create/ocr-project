@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 16px; }
+        .container { max-width: 480px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        h1 { font-size: 20px; color: #1a3a5c; }
+        .btn-add { background: #07c160; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .project-card {
+            background: white; border-radius: 12px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: relative;
+        }
+        .project-clickable { cursor: pointer; }
+        .project-clickable:active { opacity: 0.7; }
+        .project-name { font-size: 16px; font-weight: 600; color: #1a3a5c; padding-right: 70px; }
+        .project-meta { font-size: 13px; color: #8c8f9c; margin-top: 6px; }
+        .btn-delete {
+            position: absolute; top: 12px; right: 12px;
+            background: #fde8e8; color: #e74c3c; border: none;
+            padding: 6px 10px; border-radius: 6px;
+            font-size: 13px; cursor: pointer;
+        }
+        .empty { text-align: center; padding: 40px 0; color: #8c8f9c; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📁 我的项目</h1>
+        <button class="btn-add" onclick="location.href='/project/new'">+ 新建</button>
+    </div>
+    <div id="projectList"></div>
+</div>
+
+<script>
+    async function loadProjects() {
+        const res = await fetch('/api/projects');
+        const projects = await res.json();
+        const list = document.getElementById('projectList');
+
+        if (projects.length === 0) {
+            list.innerHTML = '<div class="empty">还没有项目，点击右上角新建</div>';
+            return;
+        }
+
+        list.innerHTML = projects.map(p => `
+            <div class="project-card">
+                <div class="project-clickable" onclick="location.href='/project/${p.id}'">
+                    <div class="project-name">${p.name}</div>
+                    <div class="project-meta">${p.field_count} 个指标 · 创建于 ${p.created_at || ''}</div>
+                </div>
+                <button class="btn-delete" onclick="event.stopPropagation(); deleteProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
+                    🗑️ 删除
+                </button>
+            </div>
+        `).join('');
+    }
+
+    async function deleteProject(id, name) {
+        if (!confirm(`确定要删除项目「${name}」吗？\n所有患者数据也会一并删除！`)) return;
+
+        const res = await fetch('/api/project/' + id, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+            alert('删除成功');
+            loadProjects();
+        } else {
+            alert('删除失败：' + (data.error || ''));
+        }
+    }
+
+    loadProjects();
+</script>
+</body>
+</html>

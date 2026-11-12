@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新建科研项目</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, sans-serif; }
+        body { background-color: #f5f7fa; padding: 16px; color: #333; padding-bottom: 60px; }
+        .container { max-width: 600px; margin: 0 auto; }
+
+        /* 基础卡片 */
+        .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .card-title { font-size: 16px; font-weight: bold; color: #1a3a5c; margin-bottom: 8px; }
+        .sub-title { font-size: 12px; color: #888; margin-bottom: 12px; line-height: 1.4; }
+
+        /* 表单控件 */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #333; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 14px; outline: none; }
+        textarea.form-control { resize: vertical; min-height: 80px; }
+
+        /* 顶部选择卡片 */
+        .option-card { display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; background: #fff; }
+        .option-card.active { border-color: #007bff; background: #f0f7ff; }
+        .option-content { flex: 1; }
+        .option-title { font-size: 15px; font-weight: bold; margin-bottom: 4px; }
+        .option-desc { font-size: 12px; color: #666; }
+        .option-action { color: #007bff; font-size: 14px; font-weight: 600; margin-left: 12px; }
+
+        /* --- 模式1：智能建表 --- */
+        .segment-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 12px; background: #fff; }
+        .segment-num { background: #007bff; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
+        .segment-content { flex: 1; }
+        .segment-title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+        .segment-desc { font-size: 13px; color: #888; margin-bottom: 12px; }
+        .btn-outline { background: #fff; border: 1px solid #007bff; color: #007bff; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%; font-weight: bold;}
+
+        /* 标题与预览按钮 */
+        .preview-header { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0; }
+        .preview-title { font-size: 15px; font-weight: bold; }
+        .btn-preview { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
+
+        /* --- 模式2：报告单矩阵 --- */
+        .dept-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .dept-tag { background: #fff; border: 1px solid #d0d5dd; padding: 8px 16px; border-radius: 20px; font-size: 14px; white-space: nowrap; cursor: pointer; color: #333; transition: all 0.2s;}
+        .dept-tag.active { background: #f0f7ff; border-color: #007bff; color: #007bff; font-weight: bold;}
+        .dept-tag.add-btn { color: #007bff; border-style: dashed; }
+        
+        .action-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;}
+        .btn-primary { background: #007bff; color: #fff; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; font-weight: bold; flex: 1;}
+        .btn-secondary { background: #fff; border: 1px solid #007bff; color: #007bff; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; flex: 1; text-align: center; font-weight: bold; }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 12px;}
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .test-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; cursor: pointer; position: relative; transition: all 0.2s; background: #fff; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; }
+        .test-card.selected { border-color: #007bff; background: #f8fbff; }
+        .test-card.add-new-card { border-style: dashed; justify-content: center; align-items: center; background: #fafbfc; color: #007bff; font-weight: bold; min-height: 100px; }
+        .test-card.add-new-card:hover { background: #f0f7ff; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .card-tag { font-size: 11px; color: #666; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px; background: #f8fafc; }
+        .card-check { width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; color: #fff; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; pointer-events: none;}
+        .test-card.selected .card-check { background: #007bff; }
+        .card-title-text { font-size: 14px; font-weight: bold; color: #1a3a5c; margin-bottom: 6px; line-height: 1.3; }
+        .card-desc { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.4; flex: 1; }
+        .card-footer { font-size: 12px; color: #007bff; font-weight: bold; margin-top: auto;}
+
+        /* --- 模式3：Excel 表格 --- */
+        .upload-box { border: 1px dashed #007bff; background: #f0f7ff; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; margin-bottom: 16px; }
+        .upload-box p { color: #007bff; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+        .upload-box span { color: #666; font-size: 12px; }
+        
+        .table-header-bar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px; border-radius: 8px 8px 0 0; border: 1px solid #e2e8f0; border-bottom: none; }
+        .table-title { font-size: 15px; font-weight: bold; color: #1a3a5c; }
+        .btn-collapse { background: #e8f0fe; color: #1a73e8; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+        
+        .excel-preview-box { border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; background: #fff; overflow: hidden; margin-bottom: 16px;}
+        .excel-preview-info { padding: 12px; background: #fafbfc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #333; }
+        .tag-pending { background: #fff3cd; color: #856404; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold; }
+
+        .table-scroll { max-height: 400px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        th { background: #f8fafc; padding: 10px; position: sticky; top: 0; color: #555; font-weight: 600; border-bottom: 1px solid #e2e8f0; z-index: 10; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+        td input, td select { width: 100%; border: 1px solid transparent; padding: 6px; border-radius: 4px; font-size: 13px; outline: none; background: transparent; }
+        td input:focus, td select:focus { border-color: #007bff; background: #fff; }
+        .index-col { width: 40px; color: #888; text-align: center; }
+        .type-col { width: 90px; }
+        .btn-del-row { color: #ff4d4f; cursor: pointer; border: none; background: none; font-weight: bold; font-size: 16px; }
+        .btn-confirm-blue { display: block; width: calc(100% - 24px); margin: 12px auto; background: #007bff; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; text-align: center; }
+
+        /* --- 公共标签区 --- */
+        .tag-section-title { font-size: 14px; font-weight: bold; margin: 16px 0 8px 0; }
+        .add-row-group { display: flex; gap: 8px; margin-bottom: 12px; }
+        .add-row-group input { flex: 1; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 13px; background: #f8fafc; }
+        .btn-add { background: #e8ecf0; color: #333; border: none; padding: 0 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; max-height: 250px; overflow-y: auto; padding: 4px; }
+        .tag-item { background: #e8f4ff; color: #007bff; padding: 6px 12px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 6px; border: 1px solid #cce5ff; }
+        .tag-item span { cursor: pointer; font-weight: bold; color: #99c2ff; }
+        .tag-item span:hover { color: #ff4d4f; }
+
+        /* 锁定状态的标签 */
+        .tag-item.locked { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+        .tag-item.locked span { display: none; } 
+
+        /* 其他通用 */
+        .hidden { display: none !important; }
+        .divider { height: 1px; background: #eee; margin: 16px 0; }
+
+        /* 底部按钮 */
+        .footer-btns { display: flex; gap: 12px; margin-top: 24px; }
+        .btn-main { flex: 2; background: #007bff; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-clear { flex: 1; background: #e8ecf0; color: #333; border: none; padding: 14px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        
+        /* 汇总提示框 */
+        .summary-box-blue { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 16px 0; }
+        .summary-box-blue .title { font-size: 16px; font-weight: bold; color: #0369a1; margin-bottom: 8px; }
+        .summary-box-blue .desc { font-size: 13px; color: #0369a1; margin-bottom: 12px; line-height: 1.5; }
+        
+        /* 提示文字样式 */
+        .smart-tips { color: #1e3a8a; font-weight: 600; font-size: 14px; line-height: 2; margin-top: 16px; }
+
+        /* ================= 底部弹出菜单 (Action Sheet) ================= */
+        .action-sheet-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); z-index: 999; }
+        .action-sheet { display: none; position: fixed; left: 0; right: 0; bottom: 0; background: #f5f5f5; z-index: 1000; border-radius: 16px 16px 0 0; overflow: hidden; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .action-btn { display: block; width: 100%; padding: 18px; font-size: 16px; color: #333; background: #fff; border: none; border-bottom: 1px solid #eee; text-align: center; cursor: pointer; }
+        .action-btn:active { background: #f8f8f8; }
+        .cancel-btn { border-bottom: none; margin-top: 8px; color: #666; }
+
+        /* ================= 预览编辑弹窗 (Modal) ================= */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 2000; }
+        .modal-content { display: none; position: fixed; top: 10%; left: 5%; right: 5%; bottom: 10%; background: #fff; z-index: 2001; border-radius: 12px; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #eee; background: #f8fafc; }
+        .modal-header h3 { font-size: 16px; color: #1a3a5c; }
+        .modal-close { background: none; border: none; font-size: 20px; color: #888; cursor: pointer; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 0; }
+        .modal-footer { padding: 12px; border-top: 1px solid #eee; background: #fff; }
+        
+        /* 弹窗内被锁定的行（只有之前点过确认的才会变绿） */
+        .row-locked { background-color: #f0fdf4; }
+        .row-locked input, .row-locked select { color: #2e7d32; font-weight: bold; cursor: not-allowed; background: transparent; }
+
+        /* ================= 通用表单弹窗 (Form Modal) ================= */
+        .form-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 350px; background: #fff; z-index: 3001; border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .form-modal h4 { margin-bottom: 16px; color: #1a3a5c; font-size: 16px; }
+        .form-modal .form-group { margin-bottom: 12px; text-align: left; }
+        .form-modal .form-group label { font-size: 13px; margin-bottom: 6px; color: #333; font-weight: normal;}
+        .form-modal .form-control { padding: 10px; }
+        .form-modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+        .form-modal-btns button { flex: 1; padding: 10px; border-radius: 6px; border: none; font-size: 14px; cursor: pointer; font-weight: bold; }
+        .btn-cancel { background: #e8ecf0; color: #333; }
+        .btn-ok { background: #007bff; color: #fff; }
+        .form-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 3000; }
+
+        /* 识别中的全屏 Loading */
+        .global-loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 4000; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #e8ecf0; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 16px; color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    
+    <!-- 基础信息 -->
+    <div class="card">
+        <div class="card-title">创建科研项目</div>
+        <div class="form-group">
+            <label>项目名称</label>
+            <input type="text" id="projectName" class="form-control" placeholder="例：ICU脓毒症死亡风险预测模型">
+        </div>
+    </div>
+
+    <!-- 第一步：选择表头创建方式 -->
+    <div class="card">
+        <div class="card-title">选择表头创建方式</div>
+        
+        <div class="option-card active" onclick="switchMode('smart')" id="card-smart">
+            <div class="option-content">
+                <div class="option-title">完整病历智能建表</div>
+                <div class="option-desc">首例生成候选表头，前5例持续发现遗漏字段。</div>
+            </div>
+            <div class="option-action">选择</div>
+        </div>
+
+        <div class="option-card" onclick="switchMode('report')" id="card-report">
+            <div class="option-content">
+                <div class="option-title">按检查化验单建表</div>
+                <div class="option-desc">明确需要哪些报告时，直接选择标准指标清单。</div>
+            </div>
+            <div class="option-action">选择</div>
+        </div>
+
+        <div class="option-card" onclick="switchMode('excel')" id="card-excel">
+            <div class="option-content">
+                <div class="option-title">上传已有 Excel 表头</div>
+                <div class="option-desc">导入现有研究表第一行，预览编辑后确认。</div>
+            </div>
+            <div class="option-action">选择</div>
+        </div>
+    </div>
+
+    <!-- ================= 动态区域 ================= -->
+
+    <!-- 区域 A：智能建表 -->
+    <div class="card" id="area-smart">
+        <div class="segment-box">
+            <div class="segment-num">1</div>
+            <div class="segment-content">
+                <div class="segment-title">基础资料</div>
+                <div class="segment-desc">病案首页、入院记录、首次生命体征和生活史</div>
+                <button class="btn-outline" onclick="openActionSheet('基础资料')">上传基础资料</button>
+            </div>
+        </div>
+        
+        <div class="segment-box">
+            <div class="segment-num">2</div>
+            <div class="segment-content">
+                <div class="segment-title">化验指标</div>
+                <div class="segment-desc">血常规、生化、凝血、血气等</div>
+                <select class="form-control" style="margin-bottom: 8px;" id="labTestSelect" onchange="toggleOtherLabInput()">
+                    <option value="">请选择化验单名称</option>
+                    <option value="cbc">血常规（血细胞分析）</option>
+                    <option value="liver">肝功能</option>
+                    <option value="renal">肾功能</option>
+                    <option value="other">其他（手动填写）</option>
+                </select>
+                <input type="text" id="otherLabInput" class="form-control" style="margin-bottom: 8px; display: none;" placeholder="请输入化验单名称">
+                <button class="btn-outline" onclick="openActionSheet('化验指标')">上传化验单</button>
+            </div>
+        </div>
+
+        <!-- 修改点：步骤3检查指标改为直接保留图片附件 -->
+        <div class="segment-box">
+            <div class="segment-num">3</div>
+            <div class="segment-content">
+                <div class="segment-title">检查指标</div>
+                <div class="segment-desc">心电图、超声、CT、MRI、内镜等</div>
+                <input type="file" id="checkImageInput" accept="image/*" multiple style="display:none" onchange="handleCheckImage(event)">
+                <button class="btn-outline" onclick="document.getElementById('checkImageInput').click()">上传检查单（保留原图附件）</button>
+                <div id="checkImagePreview" style="display:none; margin-top:8px; font-size:13px; color:#07c160; font-weight:bold; background:#e8f5e9; padding:8px; border-radius:6px;">
+                    ✅ 已选择检查图片，将作为附件保留
+                </div>
+            </div>
+        </div>
+
+        <div class="segment-box">
+            <div class="segment-num">4</div>
+            <div class="segment-content">
+                <div class="segment-title">特定科研指标</div>
+                <div class="segment-desc">治疗、手术、用药、评分、并发症等</div>
+                <button class="btn-outline" onclick="openActionSheet('特定科研指标')">上传相关页面</button>
+            </div>
+        </div>
+
+        <div class="preview-header">
+            <div class="preview-title">首例完整病历智能建表</div>
+            <button class="btn-preview" onclick="openEditModal()">预览并编辑</button>
+        </div>
+        <div class="sub-title" id="smartSummaryText" style="margin-bottom: 16px;">0 项预测因子 · 0 个终点事件</div>
+        
+        <div class="smart-tips">
+            <div>每完成一段即可预览和修改</div>
+            <div>已确认字段不会因下一段识别而删除</div>
+            <div>全部完成后确认最终表头并保存项目</div>
+        </div>
+    </div>
+
+    <!-- 区域 B：按检查化验单建表 -->
+    <div class="card hidden" id="area-report">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="card-title" style="margin: 0;">选择需要收集的报告单</div>
+            <span style="background: #007bff; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 12px;">已选 <span id="selectedCount">0</span> 类</span>
+        </div>
+        
+        <div class="dept-tags" id="deptTagsContainer"></div>
+
+        <input type="text" class="search-input" placeholder="搜索报告单，如血气、M...">
+
+        <div class="action-row">
+            <button class="btn-primary" onclick="selectRecommended()">采用本科室推荐组合</button>
+            <button class="btn-secondary" onclick="clearAllSelections()">清空</button>
+        </div>
+
+        <div class="grid-2" id="testCardsContainer"></div>
+
+        <div class="summary-box-blue">
+            <div class="title">科研表头已自动生成</div>
+            <div class="desc">当前共 <span id="totalFieldsCount">0</span> 个标准指标字段。请预览并确认后再保存项目。</div>
+            <button class="btn-preview" style="width: 100%; margin-bottom: 12px;" onclick="openEditModal()">预览并编辑表头</button>
+            <div style="font-size: 13px; color: #0369a1; line-height: 1.8;">
+                ① 选择报告种类<br>
+                ② 按种类上传图片<br>
+                ③ 复核后写入患者数据
+            </div>
+        </div>
+    </div>
+
+    <!-- 区域 C：上传 Excel 表头 -->
+    <div class="card hidden" id="area-excel">
+        <div class="upload-box" onclick="document.getElementById('excelInput').click()">
+            <p>上传已有表头</p>
+            <span>支持 .xlsx、.xls、.csv、.txt，默认读取第一行。</span>
+            <div style="margin-top: 12px; background: #fff; padding: 10px; border-radius: 6px; display: inline-block; color: #007bff; font-weight: bold;">
+                选择表头文件
+            </div>
+            <input type="file" id="excelInput" accept=".xlsx,.xls,.csv,.txt" style="display:none">
+        </div>
+
+        <div class="table-header-bar">
+            <div class="table-title">6类报告自动表头</div>
+            <button class="btn-collapse">收起表头</button>
+        </div>
+        
+        <div class="excel-preview-box">
+            <div class="excel-preview-info">
+                <div>
+                    <b>Excel 表头预览</b><br>
+                    <span style="font-size:11px; color:#888;">可直接修改列名、调整顺序或删除。</span>
+                </div>
+                <div class="tag-pending">待确认</div>
+            </div>
+            
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="index-col">序号</th>
+                            <th class="type-col">字段类型</th>
+                            <th>Excel 列名（可编辑）</th>
+                            <th style="width: 30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="excelTableBody"></tbody>
+                </table>
+            </div>
+            <button class="btn-confirm-blue" onclick="confirmExcelVersion()">确认为最终版本</button>
+        </div>
+    </div>
+
+    <!-- ================= 公共汇总与提交区域 ================= -->
+    
+    <div class="card" id="summaryArea">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="card-title" style="margin: 0;">科研表头预览</div>
+            <button class="btn-preview" onclick="openEditModal()">预览并编辑</button>
+        </div>
+        <div class="sub-title" style="margin-bottom: 16px;">
+            <span id="summaryCountText">0</span> 项预测因子 · <span id="summaryEndpointText">0</span> 个终点事件
+        </div>
+
+        <div class="tag-section-title">预测因子</div>
+        <div class="tag-list" id="factorTags">
+            <span style="font-size: 13px; color: #888;">暂无数据，请在上方操作生成</span>
+        </div>
+        <div class="add-row-group">
+            <input type="text" id="addFactorInput" placeholder="添加预测因子：例 CRP、LVEF、营养评分">
+            <button class="btn-add" onclick="addCustomField('预测因子')">添</button>
+        </div>
+
+        <div class="tag-section-title">终点事件 / 结局变量</div>
+        <div class="tag-list" id="endpointTags">
+            <span style="font-size: 13px; color: #888;">暂无数据</span>
+        </div>
+        <div class="add-row-group">
+            <input type="text" id="addEndpointInput" placeholder="添加结局：例 30天再入院、压疮、MACE">
+            <button class="btn-add" onclick="addCustomField('终点事件')">添</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="form-group">
+            <label>说明</label>
+            <textarea id="description" class="form-control" placeholder="纳入标准、随访时间点或变量说明"></textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-size: 14px; font-weight: bold;">共享表头</div>
+                <div style="font-size: 12px; color: #888;">开启后，其他研究者可以复制字段用于多中心采集</div>
+            </div>
+            <input type="checkbox" style="width: 40px; height: 20px;">
+        </div>
+    </div>
+
+    <div class="footer-btns">
+        <button class="btn-main" onclick="saveProject()">创建并开始采集</button>
+        <button class="btn-clear" onclick="clearAll()">清空</button>
+    </div>
+
+</div>
+
+<!-- 真实的相机和相册输入框（隐藏） -->
+<input type="file" id="realCameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleRealImageSelect(event)">
+<input type="file" id="realAlbumInput" accept="image/*" multiple style="display:none" onchange="handleRealImageSelect(event)">
+
+<!-- ================= 底部弹出菜单 HTML ================= -->
+<div class="action-sheet-overlay" id="actionSheetOverlay" onclick="hideActionSheet()"></div>
+<div class="action-sheet" id="actionSheet">
+    <button class="action-btn" onclick="triggerRealUpload('camera')">连续拍照（1-5张）</button>
+    <button class="action-btn" onclick="triggerRealUpload('album')">从相册选择（1-5张）</button>
+    <button class="action-btn" onclick="triggerManualInput()">手动填写字段</button>
+    <button class="action-btn cancel-btn" onclick="hideActionSheet()">取消</button>
+</div>
+
+<!-- ================= 预览编辑弹窗 (Modal) ================= -->
+<div class="modal-overlay" id="editModalOverlay" onclick="closeEditModal()"></div>
+<div class="modal-content" id="editModalContent">
+    <div class="modal-header">
+        <h3>预览并编辑表头</h3>
+        <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+        <div class="table-scroll" style="max-height: 100%;">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="index-col">序号</th>
+                        <th class="type-col">字段类型</th>
+                        <th>Excel 列名（可编辑）</th>
+                        <th style="width: 30px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="modalTableBody"></tbody>
+            </table>
+        </div>
+        <button class="btn-confirm-blue" onclick="addNewRowInModal()" style="background:#e8f0fe; color:#007bff; border:1px solid #007bff;">+ 手动增加一行</button>
+    </div>
+    <div class="modal-footer">
+        <button class="btn-main" style="width: 100%;" onclick="saveModalData()">确认并保存当前段（锁定不可覆盖）</button>
+    </div>
+</div>
+
+<!-- ================= 添加科室/化验单/手动字段 通用表单弹窗 ================= -->
+<div class="form-modal-overlay" id="formModalOverlay" onclick="closeFormModal()"></div>
+<div class="form-modal" id="formModal">
+    <h4 id="formModalTitle">标题</h4>
+    <div class="form-group" id="group1">
+        <label id="label1">输入名称</label>
+        <input type="text" id="input1" class="form-control" placeholder="请输入...">
+    </div>
+    <div class="form-group" id="group2" style="display:none;">
+        <label id="label2">输入指标（逗号隔开）</label>
+        <input type="text" id="input2" class="form-control" placeholder="例：指标1, 指标2">
+    </div>
+    <!-- 新增：字段类型选择 -->
+    <div class="form-group" id="group3" style="display:none;">
+        <label>字段类型</label>
+        <select id="input3" class="form-control">
+            <option value="text">文本类（如：主诉、既往史）</option>
+            <option value="yesno">是/否（如：发热、高血压）</option>
+            <option value="number">数值类（如：年龄、血压值）</option>
+        </select>
+    </div>
+    <div class="form-modal-btns">
+        <button class="btn-cancel" onclick="closeFormModal()">取消</button>
+        <button class="btn-ok" onclick="submitFormModal()">确定</button>
+    </div>
+</div>
+
+<!-- 识别中的全局 Loading -->
+<div class="global-loading" id="globalLoading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">AI 正在识别图片，请稍候...</div>
+</div>
+
+<script>
+    let factorData = [];
+    let endpointData = [];
+    let selectedTestIds = new Set();
+    let modalData = []; 
+    
+    let lockedFactors = new Set();
+    let lockedEndpoints = new Set();
+
+    let fieldTypes = {}; 
+    
+    let currentMode = 'smart'; 
+    let currentDept = 'general'; 
+    let currentUploadSegment = ''; 
+    
+    let formModalType = ''; 
+
+    const presetData = {
+        general: [
+            { id: 'cbc', title: '血常规', label: '化验单', desc: '血细胞计数、分类', fields: ['白细胞', '红细胞', '血红蛋白', '血小板', '中性粒细胞绝对值', '中性粒细胞百分比', '淋巴细胞百分比'] },
+            { id: 'liver', title: '肝功能', label: '化验单', desc: '转氨酶、胆红素和蛋白代谢', fields: ['谷丙转氨酶', '谷草转氨酶', '总胆红素', '直接胆红素', '间接胆红素', '总蛋白', '白蛋白', '球蛋白'] },
+            { id: 'renal', title: '肾功能', label: '化验单', desc: '肌酐、尿素、尿酸及肾小球滤过率', fields: ['肌酐', '尿素氮', '尿酸', '胱抑素C', '内生肌酐清除率'] },
+            { id: 'electrolyte', title: '电解质', label: '化验单', desc: '钾、钠、氯、钙、镁和磷', fields: ['钾', '钠', '氯', '钙', '镁', '磷'] },
+            { id: 'coag', title: '凝血功能', label: '化验单', desc: 'PT、INR、APTT、纤维蛋白原和D-二聚体', fields: ['凝血酶原时间', '国际标准化比值', '活化部分凝血活酶时间', '纤维蛋白原', 'D-二聚体'] },
+            { id: 'inflammation', title: '炎症与感染指标', label: '化验单', desc: 'CRP、PCT、血沉及常用炎症指标', fields: ['C反应蛋白', '降钙素原', '红细胞沉降率', '白介素-6'] },
+            { id: 'glucose', title: '血糖及糖代谢', label: '化验单', desc: '血糖、糖化血红蛋白', fields: ['空腹血糖', '糖化血红蛋白'] },
+            { id: 'lipid', title: '血脂', label: '化验单', desc: '胆固醇、甘油三酯及脂蛋白', fields: ['总胆固醇', '甘油三酯', '高密度脂蛋白', '低密度脂蛋白'] }
+        ],
+        icu: [
+            { id: 'blood_gas', title: '血气分析', label: '化验单', desc: '酸碱状态、氧合、二氧化碳和乳酸', fields: ['pH', '动脉血氧分压', '动脉血二氧化碳分压', '乳酸', '碳酸氢根', '碱剩余'] },
+            { id: 'myocard', title: '心肌酶及心肌损伤标志物', label: '化验单', desc: '心肌酶、肌钙蛋白及心衰标志物', fields: ['肌酸激酶', '肌酸激酶同工酶', '肌钙蛋白I', 'B型钠尿肽'] },
+            { id: 'coag', title: '凝血功能', label: '化验单', desc: 'PT、INR、APTT、纤维蛋白原和D-二聚体', fields: ['凝血酶原时间', '国际标准化比值', '活化部分凝血活酶时间', '纤维蛋白原', 'D-二聚体'] },
+            { id: 'inflammation', title: '炎症与感染指标', label: '化验单', desc: 'CRP、PCT、血沉及常用炎症指标', fields: ['C反应蛋白', '降钙素原', '白介素-6'] },
+            { id: 'microbio', title: '微生物培养及药敏报告', label: '化验单', desc: '结构化标本、病原体、药敏和MIC', fields: ['标本类型', '检出病原体', '耐药基因', '最低抑菌浓度'] },
+            { id: 'record_vent', title: '呼吸机监测记录', label: '监测记录', desc: '区分设定值与监测值的呼吸支持时间序列', fields: ['通气模式', '潮气量', '呼气末正压', '气道峰压'] }
+        ],
+        emergency: [
+            { id: 'myocard', title: '心梗标志物', label: '化验单', desc: '心肌酶、肌钙蛋白', fields: ['肌酸激酶同工酶', '肌钙蛋白I', '肌红蛋白'] },
+            { id: 'blood_gas', title: '血气分析', label: '化验单', desc: '酸碱状态、氧合和乳酸', fields: ['pH', '动脉血氧分压', '乳酸'] },
+            { id: 'amylase', title: '淀粉酶及脂肪酶', label: '化验单', desc: '急腹症相关酶学检查', fields: ['血淀粉酶', '尿淀粉酶', '脂肪酶'] },
+            { id: 'ecg', title: '心电图报告', label: '检查单', desc: '心率、间期、心律和诊断描述', fields: ['心率', 'PR间期', 'QRS时限', 'ST段改变'] }
+        ],
+        cardio: [
+            { id: 'lipid', title: '血脂全套', label: '化验单', desc: '胆固醇、甘油三酯及载脂蛋白', fields: ['总胆固醇', '甘油三酯', '高密度脂蛋白', '低密度脂蛋白', '载脂蛋白A1', '载脂蛋白B', '脂蛋白a'] },
+            { id: 'heart_failure', title: '心衰标志物', label: '化验单', desc: 'BNP及NT-proBNP', fields: ['B型钠尿肽', 'N末端B型钠尿肽前体'] },
+            { id: 'ecg', title: '心电图报告', label: '检查单', desc: '心率、间期、心律和诊断描述', fields: ['心率', 'PR间期', 'QRS时限', 'QTc间期', 'ST段改变'] },
+            { id: 'echo', title: '心脏超声报告', label: '检查单', desc: '心腔、瓣膜、射血分数和血流动力学', fields: ['左室射血分数', '左室舒张末期内径', 'E/A比值', '瓣膜反流程度'] }
+        ]
+    };
+
+    let deptNames = {
+        general: '通用',
+        icu: '重症医学科',
+        emergency: '急诊科',
+        cardio: '心血管内科'
+    };
+
+    function init() {
+        renderDeptTags(); 
+        switchMode('smart'); 
+        changeDept('general'); 
+        renderExcelTable(); 
+        updateTagsUI();
+    }
+
+    // 新增：处理检查图片的直接选择与保留
+    function handleCheckImage(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            document.getElementById('checkImagePreview').style.display = 'block';
+            document.getElementById('checkImagePreview').innerText = `✅ 已选择 ${files.length} 张检查图片，无需提取字段，将直接保留原图附件`;
+        }
+        // 清理，防止重复触发
+        event.target.value = '';
+    }
+
+    // ================= 底部菜单与真实上传逻辑 =================
+    function openActionSheet(segmentName) {
+        currentUploadSegment = segmentName;
+        document.getElementById('actionSheetOverlay').style.display = 'block';
+        document.getElementById('actionSheet').style.display = 'block';
+    }
+
+    function hideActionSheet() {
+        document.getElementById('actionSheetOverlay').style.display = 'none';
+        document.getElementById('actionSheet').style.display = 'none';
+    }
+
+    function triggerRealUpload(type) {
+        hideActionSheet();
+        if (type === 'camera') {
+            document.getElementById('realCameraInput').click();
+        } else {
+            document.getElementById('realAlbumInput').click();
+        }
+    }
+
+    function triggerManualInput() {
+        hideActionSheet();
+        openFormModal('field');
+    }
+
+    function handleRealImageSelect(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const loading = document.getElementById('globalLoading');
+        const loadingText = document.getElementById('loadingText');
+        loadingText.textContent = `正在识别 ${files.length} 张图片...`;
+        loading.style.display = 'flex';
+
+        setTimeout(() => {
+            loading.style.display = 'none';
+            
+            const mockData = {
+                '基础资料': ['患者姓名', '性别', '年龄', '入院日期', '联系电话'],
+                '化验指标': ['C反应蛋白', '降钙素原', '白细胞介素-6'],
+                '特定科研指标': ['APACHE II评分', 'SOFA评分', 'ICU住院天数']
+            };
+            
+            let newFields = mockData[currentUploadSegment] || [];
+            let addedCount = 0;
+            
+            newFields.forEach(f => {
+                if (!factorData.includes(f) && !endpointData.includes(f)) {
+                    factorData.push(f);
+                    if (currentUploadSegment === '基础资料') {
+                        fieldTypes[f] = 'text';
+                    }
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                updateTagsUI();
+                alert(`识别成功！从上传的图片中提取出了 ${addedCount} 个新指标，请核对。`);
+            } else {
+                alert('识别完成，但未发现新的指标。');
+            }
+            
+            event.target.value = ''; 
+        }, 1500);
+    }
+
+    // ================= 通用表单弹窗逻辑 =================
+    function openFormModal(type) {
+        formModalType = type;
+        document.getElementById('formModalOverlay').style.display = 'block';
+        document.getElementById('formModal').style.display = 'block';
+        document.getElementById('input1').value = '';
+        document.getElementById('input2').value = '';
+
+        if (type === 'dept') {
+            document.getElementById('formModalTitle').textContent = '添加新科室';
+            document.getElementById('label1').textContent = '科室名称（如：呼吸内科）';
+            document.getElementById('group2').style.display = 'none';
+            document.getElementById('group3').style.display = 'none';
+        } else if (type === 'test') {
+            document.getElementById('formModalTitle').textContent = '添加自定义化验单';
+            document.getElementById('label1').textContent = '化验单名称（如：心肌酶谱）';
+            document.getElementById('label2').textContent = '包含的指标（用逗号隔开，如：CK, CK-MB）';
+            document.getElementById('group2').style.display = 'block';
+            document.getElementById('group3').style.display = 'none';
+        } else if (type === 'field') {
+            document.getElementById('formModalTitle').textContent = '手动添加字段';
+            document.getElementById('label1').textContent = '字段名称（如：主诉、高血压、体温）';
+            document.getElementById('group2').style.display = 'none'; 
+            document.getElementById('group3').style.display = 'block'; 
+        }
+    }
+
+    function closeFormModal() {
+        document.getElementById('formModalOverlay').style.display = 'none';
+        document.getElementById('formModal').style.display = 'none';
+    }
+
+    function submitFormModal() {
+        const val1 = document.getElementById('input1').value.trim();
+        const val2 = document.getElementById('input2').value.trim();
+        const val3 = document.getElementById('input3').value; 
+
+        if (!val1) return alert('请输入名称！');
+
+        if (formModalType === 'dept') {
+            const key = 'custom_dept_' + Date.now();
+            deptNames[key] = val1;
+            presetData[key] = []; 
+            renderDeptTags();
+            changeDept(key); 
+        } else if (formModalType === 'test') {
+            if (!val2) return alert('请输入包含的指标！');
+            const fields = val2.split(/[,，]/).map(s => s.trim()).filter(s => s);
+            const newId = 'custom_test_' + Date.now();
+            presetData[currentDept].push({
+                id: newId,
+                title: val1,
+                label: '自定义',
+                desc: '手动添加的化验单',
+                fields: fields
+            });
+            renderCards(); 
+        } else if (formModalType === 'field') {
+            if (!factorData.includes(val1)) {
+                factorData.push(val1);
+                fieldTypes[val1] = val3;
+                updateTagsUI();
+            }
+        }
+        closeFormModal();
+    }
+
+    // ================= 渲染与添加科室 =================
+    function renderDeptTags() {
+        const container = document.getElementById('deptTagsContainer');
+        let html = '';
+        for (let key in deptNames) {
+            const activeClass = currentDept === key ? 'active' : '';
+            html += `<div class="dept-tag ${activeClass}" onclick="changeDept('${key}')">${deptNames[key]}</div>`;
+        }
+        html += `<div class="dept-tag add-btn" onclick="openFormModal('dept')">+ 添加科室</div>`;
+        container.innerHTML = html;
+    }
+
+    function changeDept(dept) {
+        currentDept = dept;
+        renderDeptTags(); 
+        renderCards();
+    }
+
+    // ================= 渲染与添加化验单 =================
+    function renderCards() {
+        const container = document.getElementById('testCardsContainer');
+        const list = presetData[currentDept] || [];
+        
+        let html = list.map(test => {
+            const isSelected = selectedTestIds.has(test.id);
+            return `
+                <div class="test-card ${isSelected ? 'selected' : ''}" onclick="toggleTest('${test.id}')">
+                    <div class="card-header">
+                        <span class="card-tag">${test.label}</span>
+                        <div class="card-check">${isSelected ? '✓' : '+'}</div>
+                    </div>
+                    <div class="card-title-text">${test.title}</div>
+                    <div class="card-desc">${test.desc}</div>
+                    <div class="card-footer">自动生成 ${test.fields.length} 个字段</div>
+                </div>
+            `;
+        }).join('');
+
+        html += `
+            <div class="test-card add-new-card" onclick="openFormModal('test')">
+                <div style="font-size: 24px; margin-bottom: 8px;">+</div>
+                <div style="font-size: 14px;">添加自定义</div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    function toggleTest(testId) {
+        const list = presetData[currentDept] || [];
+        const test = list.find(t => t.id === testId);
+        
+        if (selectedTestIds.has(testId)) {
+            selectedTestIds.delete(testId);
+        } else {
+            selectedTestIds.add(testId);
+            test.fields.forEach(name => {
+                if (!factorData.includes(name)) {
+                    factorData.push(name);
+                    if (!fieldTypes[name]) fieldTypes[name] = 'number';
+                }
+            });
+        }
+        
+        renderCards(); 
+        updateTagsUI();
+    }
+
+    // ================= 其他逻辑 =================
+    function toggleOtherLabInput() {
+        const select = document.getElementById('labTestSelect');
+        const input = document.getElementById('otherLabInput');
+        if (select.value === 'other') {
+            input.style.display = 'block';
+        } else {
+            input.style.display = 'none';
+            input.value = '';
+        }
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.querySelectorAll('.option-card').forEach(el => el.classList.remove('active'));
+        document.getElementById('card-' + mode).classList.add('active');
+
+        document.getElementById('area-smart').classList.add('hidden');
+        document.getElementById('area-report').classList.add('hidden');
+        document.getElementById('area-excel').classList.add('hidden');
+        document.getElementById('area-' + mode).classList.remove('hidden');
+    }
+
+    function openEditModal() {
+        modalData = [];
+        factorData.forEach(f => {
+            modalData.push({ type: '预测因子', name: f, isLocked: lockedFactors.has(f) });
+        });
+        endpointData.forEach(f => {
+            modalData.push({ type: '终点事件', name: f, isLocked: lockedEndpoints.has(f) });
+        });
+        
+        renderModalTable();
+        document.getElementById('editModalOverlay').style.display = 'block';
+        document.getElementById('editModalContent').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModalOverlay').style.display = 'none';
+        document.getElementById('editModalContent').style.display = 'none';
+    }
+
+    function renderModalTable() {
+        const tbody = document.getElementById('modalTableBody');
+        if (modalData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888; padding: 20px;">暂无数据，请上传或手动添加</td></tr>';
+            return;
+        }
+        let html = '';
+        modalData.forEach((row, index) => {
+            const trClass = row.isLocked ? 'row-locked' : '';
+            const disabledAttr = row.isLocked ? 'disabled' : '';
+            const readonlyAttr = row.isLocked ? 'readonly' : '';
+            const delBtn = row.isLocked ? '<span style="color:#2e7d32; font-size:12px;">已确认</span>' : `<button class="btn-del-row" onclick="removeModalRow(${index})">×</button>`;
+
+            const fType = fieldTypes[row.name] || 'number';
+            const typeText = fType === 'text' ? '文本' : (fType === 'yesno' ? '是/否' : '数值');
+
+            html += `
+                <tr class="${trClass}">
+                    <td class="index-col">${index + 1}</td>
+                    <td class="type-col" style="font-size:12px; color:#666;">
+                        ${row.type === '预测因子' ? '预测因子(' + typeText + ')' : '终点事件'}
+                    </td>
+                    <td><input type="text" value="${row.name}" oninput="modalData[${index}].name = this.value" ${readonlyAttr}></td>
+                    <td>${delBtn}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function addNewRowInModal() {
+        modalData.push({ type: '预测因子', name: '', isLocked: false });
+        renderModalTable();
+        document.querySelector('.modal-body').scrollTop = document.querySelector('.modal-body').scrollHeight;
+    }
+
+    function removeModalRow(index) {
+        if (modalData[index].isLocked) return; 
+        modalData.splice(index, 1);
+        renderModalTable();
+    }
+
+    function saveModalData() {
+        factorData = [];
+        endpointData = [];
+        
+        modalData.forEach(row => {
+            if (row.name.trim() === '') return;
+            
+            if (row.type === '预测因子') {
+                factorData.push(row.name);
+                if (!row.isLocked) lockedFactors.add(row.name); 
+            } else {
+                endpointData.push(row.name);
+                if (!row.isLocked) lockedEndpoints.add(row.name);
+            }
+        });
+        
+        updateTagsUI();
+        renderExcelTable();
+        closeEditModal();
+        alert('当前段表头已确认并锁定，后续上传图片识别不会覆盖这些字段。');
+    }
+
+    function renderExcelTable() {
+        let allRows = [];
+        factorData.forEach(f => allRows.push({ type: '预测因子', name: f, isLocked: lockedFactors.has(f) }));
+        endpointData.forEach(f => allRows.push({ type: '终点事件', name: f, isLocked: lockedEndpoints.has(f) }));
+
+        const tbody = document.getElementById('excelTableBody');
+        let html = '';
+        allRows.forEach((row, index) => {
+            const delBtn = row.isLocked ? '🔒' : `<button class="btn-del-row" onclick="removeExcelRowByName('${row.name}', '${row.type}')">×</button>`;
+            const fType = fieldTypes[row.name] || 'number';
+            const typeText = fType === 'text' ? '文本' : (fType === 'yesno' ? '是/否' : '数值');
+
+            html += `
+                <tr>
+                    <td class="index-col">${index + 1}</td>
+                    <td class="type-col">${typeText}</td>
+                    <td><input type="text" value="${row.name}" readonly style="background:${row.isLocked ? '#f0fdf4' : '#f8fafc'}; color:${row.isLocked ? '#2e7d32' : '#555'}; border:none; outline:none;"></td>
+                    <td style="text-align:center;">${delBtn}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:#888; padding: 20px;">暂无数据</td></tr>';
+    }
+
+    function removeExcelRowByName(name, type) {
+        if (type === '预测因子') {
+            factorData = factorData.filter(f => f !== name);
+        } else {
+            endpointData = endpointData.filter(f => f !== name);
+        }
+        updateTagsUI();
+    }
+
+    function confirmExcelVersion() {
+        factorData.forEach(f => lockedFactors.add(f));
+        endpointData.forEach(f => lockedEndpoints.add(f));
+        updateTagsUI();
+        alert('表头已确认为最终版本，所有字段已锁定不可修改！');
+    }
+
+    function addCustomField(type) {
+        const inputId = type === '预测因子' ? 'addFactorInput' : 'addEndpointInput';
+        const name = document.getElementById(inputId).value.trim();
+        if (!name) return;
+
+        if (type === '预测因子') {
+            if (!factorData.includes(name)) {
+                factorData.push(name);
+                if (!fieldTypes[name]) fieldTypes[name] = 'number';
+            }
+        } else {
+            if (!endpointData.includes(name)) {
+                endpointData.push(name);
+            }
+        }
+        document.getElementById(inputId).value = '';
+        updateTagsUI();
+    }
+
+    function removeField(type, index) {
+        if (type === '预测因子') {
+            const name = factorData[index];
+            if (lockedFactors.has(name)) return alert('该字段已确认，不可删除！');
+            factorData.splice(index, 1);
+        } else {
+            const name = endpointData[index];
+            if (lockedEndpoints.has(name)) return alert('该字段已确认，不可删除！');
+            endpointData.splice(index, 1);
+        }
+        updateTagsUI();
+    }
+
+    function updateTagsUI() {
+        renderExcelTable();
+        
+        document.getElementById('selectedCount').textContent = selectedTestIds.size;
+        document.getElementById('totalFieldsCount').textContent = factorData.length;
+        
+        document.getElementById('summaryCountText').textContent = factorData.length;
+        document.getElementById('summaryEndpointText').textContent = endpointData.length;
+        document.getElementById('smartSummaryText').textContent = `${factorData.length} 项预测因子 · ${endpointData.length} 个终点事件`;
+
+        document.getElementById('factorTags').innerHTML = factorData.length > 0 ? 
+            factorData.map((f, i) => {
+                const isLock = lockedFactors.has(f);
+                const fType = fieldTypes[f] || 'number';
+                let typeBadge = '';
+                if (fType === 'text') typeBadge = '<span style="font-size:10px;color:#0369a1;border:1px solid #bae6fd;padding:0 2px;border-radius:2px;">文</span>';
+                if (fType === 'yesno') typeBadge = '<span style="font-size:10px;color:#d46b08;border:1px solid #ffd591;padding:0 2px;border-radius:2px;">是否</span>';
+                
+                return `<div class="tag-item ${isLock ? 'locked' : ''}">${typeBadge} ${f} ${isLock ? '🔒' : `<span onclick="removeField('预测因子', ${i})">×</span>`}</div>`;
+            }).join('') 
+            : '<span style="font-size: 13px; color: #888;">暂无数据</span>';
+
+        document.getElementById('endpointTags').innerHTML = endpointData.length > 0 ? 
+            endpointData.map((f, i) => {
+                const isLock = lockedEndpoints.has(f);
+                return `<div class="tag-item ${isLock ? 'locked' : ''}">${f} ${isLock ? '🔒' : `<span onclick="removeField('终点事件', ${i})">×</span>`}</div>`;
+            }).join('') 
+            : '<span style="font-size: 13px; color: #888;">暂无数据</span>';
+    }
+
+    function selectRecommended() {
+        const list = presetData[currentDept] || [];
+        list.slice(0, 2).forEach(test => {
+            selectedTestIds.add(test.id);
+            test.fields.forEach(name => {
+                if (!factorData.includes(name)) {
+                    factorData.push(name);
+                    if (!fieldTypes[name]) fieldTypes[name] = 'number';
+                }
+            });
+        });
+        
+        renderCards(); 
+        updateTagsUI();
+    }
+
+    function clearAllSelections() {
+        if(!confirm('确定清空所有表头吗？清空后可以重新开始。')) return;
+        selectedTestIds.clear();
+        factorData = [];
+        endpointData = [];
+        lockedFactors.clear();
+        lockedEndpoints.clear();
+        fieldTypes = {};
+        
+        renderCards(); 
+        updateTagsUI();
+    }
+
+    async function saveProject() {
+        const name = document.getElementById('projectName').value.trim();
+        if (!name) return alert('请输入项目名称');
+        if (factorData.length === 0 && endpointData.length === 0) return alert('请至少添加一个字段');
+
+        const finalFields = [];
+        factorData.forEach(f => finalFields.push({ field_name: f, field_type: fieldTypes[f] || 'number' }));
+        endpointData.forEach(f => finalFields.push({ field_name: f, field_type: 'text' }));
+
+        const payload = { name: name, description: document.getElementById('description').value, fields: finalFields };
+
+        try {
+            const res = await fetch('/api/project', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('项目创建成功！');
+                location.href = '/projects';
+            } else {
+                alert('创建失败：' + (data.error || ''));
+            }
+        } catch (err) { alert('网络错误：' + err.message); }
+    }
+
+    function clearAll() {
+        if(!confirm('确定清空所有数据吗？')) return;
+        document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = '');
+        factorData = [];
+        endpointData = [];
+        selectedTestIds.clear();
+        lockedFactors.clear();
+        lockedEndpoints.clear();
+        fieldTypes = {};
+        
+        renderCards(); 
+        updateTagsUI();
+    }
+
+    init();
+</script>
+</body>
+</html>
