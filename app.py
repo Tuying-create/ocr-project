@@ -637,7 +637,7 @@ def export_project(project_id):
 # ========== 页面路由 ==========
 @app.route('/')
 def index():
-    return send_from_directory('templates', 'projects.html')
+    return send_from_directory('templates', 'dashboard.html')
 
 @app.route('/projects')
 def projects_page():
