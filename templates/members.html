@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成员协作</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, sans-serif; }
+        body { background: #f0f2f5; padding-bottom: 40px; }
+        
+        /* 顶部导航 */
+        .header { display: flex; align-items: center; padding: 16px; background: #fff; margin-bottom: 16px; }
+        .header h1 { font-size: 18px; color: #333; margin-left: 12px; font-weight: 500; }
+        .back-btn { font-size: 20px; background: none; border: none; cursor: pointer; padding: 0 8px; color: #333;}
+        
+        .container { max-width: 600px; margin: 0 auto; padding: 0 16px; }
+        
+        /* 顶部操作卡片 */
+        .action-cards { display: flex; gap: 12px; margin-bottom: 20px; }
+        .action-btn { flex: 1; background: #fff; border: none; border-radius: 12px; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; color: #333; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.02); font-weight: 500; transition: all 0.2s;}
+        .action-btn .icon { font-size: 20px; color: #1a3a5c; }
+        .action-btn.active { border: 1px solid #007bff; color: #007bff; background: #f0f7ff;}
+        
+        /* 成员列表区域 */
+        .list-header { font-size: 14px; color: #888; margin-bottom: 12px; display: flex; justify-content: space-between;}
+        .member-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.02);}
+        .member-left { display: flex; align-items: center; gap: 12px; }
+        
+        .avatar { width: 44px; height: 44px; border-radius: 50%; background: #e8f4ff; color: #007bff; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; flex-shrink: 0;}
+        .member-info { display: flex; flex-direction: column; gap: 4px;}
+        .member-name { font-size: 16px; color: #333; font-weight: 500; display: flex; align-items: center; gap: 8px;}
+        .role-tag { font-size: 11px; color: #0056b3; background: #e8f0fe; padding: 2px 6px; border-radius: 4px; font-weight: normal;}
+        .role-tag.admin { color: #d46b08; background: #fff7e6; }
+        .role-tag.creator { color: #cf1322; background: #fff1f0; }
+        .member-role { font-size: 13px; color: #888; }
+        
+        .member-right { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #666;}
+        .btn-del { background: none; border: none; color: #e74c3c; font-size: 20px; cursor: pointer; padding: 4px;}
+        
+        /* 弹窗样式 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; width: 85%; max-width: 350px; border-radius: 16px; padding: 24px; z-index: 1000; }
+        .modal h3 { margin-bottom: 20px; font-size: 18px; color: #333; text-align: center;}
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 15px; outline: none; }
+        .modal-btns { display: flex; gap: 12px; margin-top: 24px; }
+        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 500;}
+        .btn-cancel { background: #e8ecf0; color: #333; }
+        .btn-save { background: #007bff; color: #fff; }
+
+        /* 底部中心筛选弹窗 */
+        .sheet-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; }
+        .sheet { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #f8f9fa; z-index: 2001; border-radius: 16px 16px 0 0; padding-bottom: 20px; animation: slideUp 0.3s ease-out; max-height: 80vh; display: flex; flex-direction: column; }
+        .sheet-title { padding: 16px; text-align: center; font-size: 14px; color: #888; border-bottom: 1px solid #eee; flex-shrink: 0;}
+        
+        /* 列表滚动区域 */
+        #filterOptionsContainer { overflow-y: auto; flex: 1; }
+        
+        .sheet-item { padding: 16px; text-align: center; font-size: 16px; color: #333; background: #fff; border-bottom: 1px solid #f0f0f0; cursor: pointer;}
+        .sheet-item.active { color: #007bff; font-weight: bold; }
+        .sheet-item.add-btn { color: #007bff; font-weight: bold; }
+        .sheet-cancel { margin-top: 8px; background: #fff; padding: 16px; text-align: center; font-size: 16px; color: #666; cursor: pointer; border-radius: 0 0 16px 16px; flex-shrink: 0;}
+        
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-btn" onclick="history.back()">〈</button>
+        <h1>成员协作</h1>
+        <select id="mockRoleSelector" style="margin-left: auto; padding: 5px; border-radius: 5px;" onchange="changeMockRole()">
+            <option value="creator">👑 创建者 (测试)</option>
+            <option value="admin">💼 管理员 (测试)</option>
+            <option value="member">👤 成员 (测试)</option>
+        </select>
+    </div>
+
+    <div class="container">
+        <div class="action-cards" id="actionCards">
+            <button class="action-btn" id="filterBtn" onclick="openFilterSheet()">
+                <span class="icon">☲</span> 中心筛选
+            </button>
+            <button class="action-btn" id="addMemberBtn" onclick="openModal()">
+                <span class="icon">👤+</span> 添加成员
+            </button>
+        </div>
+
+        <div class="list-header">
+            <span id="memberCount">加载中...</span>
+            <span id="currentFilterTag" style="color:#007bff; display:none;">当前筛选: 全部</span>
+        </div>
+        <div id="memberList"></div>
+    </div>
+
+    <!-- 添加成员弹窗 -->
+    <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="modal" id="modal">
+        <h3>添加新成员</h3>
+        <div class="form-group">
+            <label>成员姓名</label>
+            <input type="text" id="memberName" class="form-control" placeholder="如：张医生">
+        </div>
+        <div class="form-group">
+            <label>角色</label>
+            <select id="memberRole" class="form-control"></select>
+        </div>
+        <div class="form-group">
+            <label>所属中心</label>
+            <!-- 使用 datalist 实现既可以选择已有中心，也可以手动输入新中心 -->
+            <input type="text" id="memberCenter" class="form-control" placeholder="输入或选择中心" list="centerList">
+            <datalist id="centerList"></datalist>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal()">取消</button>
+            <button class="btn-save" onclick="saveMember()">确定</button>
+        </div>
+    </div>
+
+    <!-- 底部中心筛选弹窗 -->
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeFilterSheet()"></div>
+    <div class="sheet" id="filterSheet">
+        <div class="sheet-title">请选择要筛选的中心</div>
+        <div id="filterOptionsContainer"></div>
+        <div class="sheet-cancel" onclick="closeFilterSheet()">取消</div>
+    </div>
+
+<script>
+    const projectId = location.pathname.split('/')[2];
+    const colors = ['#e8f4ff', '#e8f5e9', '#fff3e0', '#fce4ec', '#f3e5f5'];
+    
+    let currentUserRole = 'creator'; 
+    let allMembers = []; 
+    let currentFilterCenter = ''; 
+
+    function changeMockRole() {
+        currentUserRole = document.getElementById('mockRoleSelector').value;
+        renderMemberList(); 
+    }
+
+    // ================= 本地存储自定义中心相关逻辑 =================
+    function getCustomCenters() {
+        let centers = localStorage.getItem('custom_centers');
+        return centers ? JSON.parse(centers) : [];
+    }
+
+    function saveCustomCenter(centerName) {
+        let centers = getCustomCenters();
+        if (!centers.includes(centerName)) {
+            centers.push(centerName);
+            localStorage.setItem('custom_centers', JSON.stringify(centers));
+        }
+    }
+    // ==========================================================
+
+    // ================= 打开/关闭添加成员弹窗 =================
+    function openModal() {
+        if (currentUserRole === 'member') {
+            alert('您没有权限添加成员');
+            return;
+        }
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('modal').style.display = 'block';
+        document.getElementById('memberName').value = '';
+        document.getElementById('memberCenter').value = '';
+
+        const roleSelect = document.getElementById('memberRole');
+        let roleOptions = '';
+        if (currentUserRole === 'creator') {
+            roleOptions = `<option value="admin">管理员</option><option value="member" selected>成员</option><option value="CRC">CRC</option>`;
+        } else if (currentUserRole === 'admin') {
+            roleOptions = `<option value="member" selected>成员</option><option value="CRC">CRC</option>`;
+        }
+        roleSelect.innerHTML = roleOptions;
+        
+        // 同时刷新 datalist，让添加成员时能选到自定义中心
+        updateDatalist();
+    }
+
+    function closeModal() {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('modal').style.display = 'none';
+    }
+
+    // ================= 打开/关闭中心筛选面板 =================
+    function openFilterSheet() {
+        buildFilterOptions();
+        document.getElementById('sheetOverlay').style.display = 'block';
+        document.getElementById('filterSheet').style.display = 'flex'; // 改为 flex 以支持滚动
+    }
+
+    function closeFilterSheet() {
+        document.getElementById('sheetOverlay').style.display = 'none';
+        document.getElementById('filterSheet').style.display = 'none';
+    }
+
+    // ================= 数据加载与渲染 =================
+    async function loadMembers() {
+        try {
+            const res = await fetch(`/api/project/${projectId}/members`);
+            allMembers = await res.json();
+            renderMemberList();
+            updateDatalist();
+        } catch (err) {
+            console.error("加载数据失败:", err);
+        }
+    }
+
+    // 获取所有出现的中心（数据库里的 + 本地存的）
+    function getAllCenters() {
+        const centers = new Set();
+        allMembers.forEach(m => {
+            if (m.center && m.center !== '未分类中心') centers.add(m.center);
+        });
+        getCustomCenters().forEach(c => centers.add(c));
+        return Array.from(centers);
+    }
+
+    // 更新添加成员弹窗的下拉提示
+    function updateDatalist() {
+        const allCenters = getAllCenters();
+        const datalist = document.getElementById('centerList');
+        datalist.innerHTML = allCenters.map(c => `<option value="${c}">`).join('');
+    }
+
+    function buildFilterOptions() {
+        const centers = new Set();
+        centers.add('全部');
+        
+        // 合并所有的中心
+        getAllCenters().forEach(c => centers.add(c));
+        
+        // 确保即使还没人，当前选中的中心也在列表里
+        if (currentFilterCenter) centers.add(currentFilterCenter);
+
+        const container = document.getElementById('filterOptionsContainer');
+        let html = Array.from(centers).map(c => {
+            const isActive = (c === '全部' && currentFilterCenter === '') || (c === currentFilterCenter);
+            return `<div class="sheet-item ${isActive ? 'active' : ''}" onclick="selectFilter('${c}')">${c}</div>`;
+        }).join('');
+        
+        // 追加手动添加按钮
+        html += `<div class="sheet-item add-btn" onclick="addNewCenter()">+ 手动添加新中心</div>`;
+        
+        container.innerHTML = html;
+    }
+
+    // 手动添加中心操作
+    function addNewCenter() {
+        const centerName = prompt("请输入新的中心名称：");
+        if (centerName && centerName.trim() !== '') {
+            const cleanName = centerName.trim();
+            saveCustomCenter(cleanName);
+            
+            // 添加成功后，可以直接选中这个新中心，或者仅仅刷新列表
+            buildFilterOptions(); 
+            updateDatalist(); // 同步更新添加成员时的下拉列表
+            
+            // 提示用户
+            // alert(`中心 "${cleanName}" 添加成功`);
+        }
+    }
+
+    function selectFilter(center) {
+        currentFilterCenter = center === '全部' ? '' : center;
+        const filterBtn = document.getElementById('filterBtn');
+        const filterTag = document.getElementById('currentFilterTag');
+        
+        if(currentFilterCenter) {
+            filterBtn.classList.add('active');
+            filterTag.style.display = 'inline';
+            filterTag.textContent = `当前筛选: ${currentFilterCenter}`;
+        } else {
+            filterBtn.classList.remove('active');
+            filterTag.style.display = 'none';
+        }
+        closeFilterSheet();
+        renderMemberList();
+    }
+
+    function renderMemberList() {
+        let filteredMembers = allMembers;
+        if (currentFilterCenter) {
+            filteredMembers = allMembers.filter(m => (m.center || '未分类中心') === currentFilterCenter);
+        }
+
+        const addBtn = document.getElementById('addMemberBtn');
+        if (currentUserRole === 'member') {
+            addBtn.style.display = 'none'; 
+        } else {
+            addBtn.style.display = 'flex'; 
+        }
+
+        document.getElementById('memberCount').textContent = `${filteredMembers.length} 条成员数据`;
+        
+        const list = document.getElementById('memberList');
+        if(filteredMembers.length === 0) {
+            list.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">该中心下暂无成员</div>';
+            return;
+        }
+
+        list.innerHTML = filteredMembers.map((m, i) => {
+            const bgColor = colors[i % colors.length];
+            const initial = m.name.charAt(0).toUpperCase();
+            
+            let roleClass = '';
+            if (m.role === '管理员' || m.role === 'admin') roleClass = 'admin';
+            if (m.role === '创建者' || m.role === 'creator') roleClass = 'creator';
+
+            let showDeleteBtn = false;
+            if (currentUserRole === 'creator') {
+                showDeleteBtn = true;
+            } else if (currentUserRole === 'admin') {
+                if (m.role !== '管理员' && m.role !== 'admin' && m.role !== '创建者') {
+                    showDeleteBtn = true;
+                }
+            }
+
+            const delBtnHtml = showDeleteBtn ? `<button class="btn-del" onclick="deleteMember(${m.id})">×</button>` : '';
+
+            return `
+                <div class="member-card">
+                    <div class="member-left">
+                        <div class="avatar" style="background:${bgColor}; color:#555;">${initial}</div>
+                        <div class="member-info">
+                            <div class="member-name">
+                                ${m.name} 
+                                <span class="role-tag ${roleClass}">${m.role}</span>
+                            </div>
+                            <div class="member-role">所属中心：${m.center || '未分类'} </div>
+                        </div>
+                    </div>
+                    <div class="member-right">
+                        ${delBtnHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ================= 保存/删除成员 =================
+    async function saveMember() {
+        const name = document.getElementById('memberName').value.trim();
+        const center = document.getElementById('memberCenter').value.trim() || '未分类';
+        if(!name) return alert('请输入姓名');
+        
+        const role = document.getElementById('memberRole').value;
+        const btn = document.querySelector('.btn-save');
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+
+        try {
+            const res = await fetch(`/api/project/${projectId}/member`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, role, center, operator_role: currentUserRole })
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                closeModal();
+                loadMembers();
+            } else {
+                alert('添加失败：' + (data.error || '未知错误'));
+            }
+        } catch (err) {
+            alert('网络请求失败');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '确定';
+        }
+    }
+
+    async function deleteMember(id) {
+        if(!confirm('确定要移除该成员吗？')) return;
+        const res = await fetch(`/api/project/${projectId}/member/${id}?operator_role=${currentUserRole}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) {
+            loadMembers();
+        } else {
+            alert('删除失败：' + data.error);
+        }
+    }
+
+    // 初始化
+    loadMembers();
+</script>
+</body>
+</html>
