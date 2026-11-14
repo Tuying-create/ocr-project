@@ -1,0 +1,10 @@
+# app.yaml
+kind: wasmer.io/App.v0
+name: your-app-name  # 替换成你的 Wasmer 应用名
+package: .           # 表示从当前目录部署
+
+# 核心配置：先运行 init_db.py，成功后（&&）再启动 app.py
+cli_args:
+  - sh
+  - -c
+  - "python init_db.py && python app.py"
