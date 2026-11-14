@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>患者数据录入</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, sans-serif; }
+        body { background: #f0f2f5; padding: 16px; padding-bottom: 90px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; }
+
+        /* 顶部导航 */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .header-left { display: flex; align-items: center; }
+        .back-btn { font-size: 20px; background: none; border: none; cursor: pointer; padding: 0 8px 0 0; color: #333;}
+        .header h1 { font-size: 18px; color: #1a3a5c; margin-left: 8px; }
+        .btn-clear { background: #fff1f0; color: #cf1322; border: 1px solid #ffccc7; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: bold;}
+        
+        /* 身份提示条 */
+        .operator-bar { 
+            background: #e8f0fe; color: #1a73e8; padding: 8px 12px; 
+            border-radius: 8px; font-size: 13px; font-weight: bold; 
+            margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* 卡片通用 */
+        .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .card-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .card-title { font-size: 16px; font-weight: bold; color: #1a3a5c; border-left: 4px solid #007bff; padding-left: 8px;}
+        
+        /* 锁定按钮 */
+        .btn-lock { background: none; border: 1px solid #d0d5dd; color: #666; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;}
+        .btn-lock.locked { background: #fff1f0; border-color: #ffccc7; color: #cf1322;}
+
+        /* 上传区域 */
+        .upload-area { border: 2px dashed #007bff; background: #f0f7ff; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 8px;}
+        .upload-area p { color: #007bff; font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+        .upload-area span { color: #666; font-size: 12px; }
+        
+        /* 覆盖复选框 */
+        .override-option { margin-bottom: 16px; text-align: center; font-size: 13px; color: #d93025; font-weight: bold;}
+        .override-option input { transform: scale(1.2); margin-right: 4px; cursor: pointer;}
+
+        /* 图片预览区域 */
+        .image-preview-container { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 8px; }
+        .image-preview-container img { height: 100px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; object-fit: cover;}
+
+        /* 表单 */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500;}
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 14px; outline: none; transition: all 0.2s; background: #fff;}
+        .form-control:focus { border-color: #007bff; }
+        .form-control:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; border-color: #e0e0e0; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* 字段列表与质疑样式 */
+        .field-item { margin-bottom: 16px; display: flex; flex-direction: column; position: relative; }
+        .field-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;}
+        .field-label { font-size: 13px; color: #555; font-weight: 500; }
+        .field-unit { color: #999; font-size: 12px; margin-left: 4px;}
+        
+        .field-input-row { display: flex; gap: 8px; align-items: center; }
+        
+        /* 质疑按钮 */
+        .btn-query { background: #fff; border: 1px solid #d0d5dd; color: #999; width: 38px; height: 38px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 16px; flex-shrink: 0; transition: all 0.2s;}
+        .btn-query:hover { background: #f0f7ff; color: #007bff; border-color: #007bff; }
+        .btn-query.active { background: #fff1f0; color: #cf1322; border-color: #ffccc7; }
+
+        /* 质疑记录气泡 */
+        .query-bubble { background: #fff1f0; border: 1px solid #ffccc7; border-radius: 8px; padding: 8px 12px; margin-top: 8px; font-size: 12px; position: relative;}
+        .query-bubble::before { content: ''; position: absolute; top: -6px; left: 16px; width: 10px; height: 10px; background: inherit; border-top: 1px solid inherit; border-left: 1px solid inherit; transform: rotate(45deg);}
+        .query-bubble.resolved { background: #f6ffed; border-color: #b7eb8f; }
+        .query-bubble.resolved::before { border-color: #b7eb8f; }
+        .query-content { color: #cf1322; font-weight: 500; margin-bottom: 4px;}
+        .query-bubble.resolved .query-content { color: #52c41a; }
+        .query-meta { color: #999; font-size: 11px; display: flex; justify-content: space-between;}
+        .btn-resolve { color: #007bff; cursor: pointer; text-decoration: underline; }
+
+        /* 系统质疑样式 */
+        .input-error { border-color: #cf1322 !important; background: #fff1f0;}
+        .system-query-text { color: #cf1322; font-size: 11px; margin-top: 4px; font-weight: bold;}
+
+        /* 底部按钮 */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 12px 16px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;}
+        .btn-submit { width: 100%; padding: 14px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;}
+        
+        /* 质疑弹窗 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; z-index: 1001; }
+        .modal h3 { font-size: 16px; margin-bottom: 16px; color: #333;}
+        .modal textarea { width: 100%; height: 80px; padding: 10px; border: 1px solid #d0d5dd; border-radius: 8px; resize: none; font-size: 14px; margin-bottom: 12px;}
+        .modal-btns { display: flex; gap: 12px; justify-content: flex-end; }
+        .modal-btns button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px;}
+        .btn-modal-cancel { background: #f0f0f0; color: #333; }
+        .btn-modal-submit { background: #007bff; color: #fff; }
+
+        /* 右下角悬浮质疑汇总面板 */
+        .query-float-btn {
+            display: none; position: fixed; bottom: 80px; right: 20px;
+            background: #cf1322; color: #fff; border-radius: 50%;
+            width: 50px; height: 50px; justify-content: center; align-items: center;
+            box-shadow: 0 4px 12px rgba(207, 19, 34, 0.4); z-index: 900;
+            cursor: pointer; font-size: 20px; font-weight: bold; flex-direction: column;
+        }
+        .query-float-btn span { font-size: 12px; line-height: 1;}
+        
+        .query-panel {
+            display: none; position: fixed; bottom: 140px; right: 20px;
+            width: 280px; background: #fff; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 901;
+            flex-direction: column; overflow: hidden;
+        }
+        .query-panel-header {
+            background: #f8f9fa; padding: 12px; font-size: 14px; font-weight: bold;
+            display: flex; justify-content: space-between; border-bottom: 1px solid #eee; color: #cf1322;
+        }
+        .query-panel-body { max-height: 250px; overflow-y: auto; }
+        .query-panel-item { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px;}
+        .query-panel-item:last-child { border-bottom: none; }
+
+        /* 全局 Loading */
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 999; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #e8ecf0; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="history.back()">〈</button>
+            <h1 id="pageTitle">新建患者数据</h1>
+        </div>
+        <button class="btn-clear" onclick="clearAllFields()">🗑️ 清空表单</button>
+    </div>
+
+    <!-- 当前操作者身份 -->
+    <div class="operator-bar" id="operatorBar" style="display: none;">
+        <span id="operatorText">👤 当前操作者: 加载中</span>
+    </div>
+
+    <!-- 图片上传与 OCR -->
+    <div id="uploadSection">
+        <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+            <p>📷 点击拍照或上传图片</p>
+            <span>支持连续多张、分批上传，系统会自动补充空白项</span>
+        </div>
+        
+        <div class="override-option">
+            <label>
+                <input type="checkbox" id="forceOverride"> 
+                ⚠️ 强制覆盖已有数据（如果拍错了，勾选此项重新上传）
+            </label>
+        </div>
+        
+        <input type="file" id="imageInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event)">
+        <div class="image-preview-container" id="imagePreviewContainer"></div>
+    </div>
+
+    <!-- 识别出的原始文本（折叠） -->
+    <div class="card" id="rawTextCard" style="display: none;">
+        <div class="card-title" style="display:flex; justify-content:space-between; cursor:pointer; border-left:none; padding-left:0;" onclick="toggleRawText()">
+            <span>📄 识别到的原始文本</span>
+            <span id="rawTextToggleIcon" style="color:#007bff; font-size:12px; font-weight:normal;">展开</span>
+        </div>
+        <div id="rawTextContent" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; font-size:12px; color:#555; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
+    </div>
+
+    <!-- 表单区域 -->
+    <form id="patientForm" onsubmit="savePatient(event)">
+        <!-- 基本信息 -->
+        <div class="card">
+            <div class="card-header-row">
+                <div class="card-title">基本信息</div>
+                <button type="button" class="btn-lock" id="lockBasicBtn" onclick="toggleLock('basic')">🔒 锁定</button>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>住院号</label>
+                    <input type="text" id="hospital_id" class="form-control basic-input" placeholder="必填">
+                </div>
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="name" class="form-control basic-input">
+                </div>
+                <div class="form-group">
+                    <label>性别</label>
+                    <select id="gender" class="form-control basic-input">
+                        <option value="">未知</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>年龄</label>
+                    <input type="text" id="age" class="form-control basic-input">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>住院日期</label>
+                    <input type="date" id="admission_date" class="form-control basic-input">
+                </div>
+                <div class="form-group">
+                    <label>出院日期</label>
+                    <input type="date" id="discharge_date" class="form-control basic-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- 科研指标 (动态渲染) -->
+        <div class="card">
+            <div class="card-header-row">
+                <div class="card-title">科研指标数据 <span style="font-size:12px; color:#999; font-weight:normal;" id="queryCount"></span></div>
+                <button type="button" class="btn-lock" id="lockFieldsBtn" onclick="toggleLock('fields')">🔒 锁定</button>
+            </div>
+            <div id="fieldsContainer">
+                <p style="text-align:center; color:#888; font-size:14px; padding: 20px 0;">暂无指标，请先上传图片识别或填写基本信息</p>
+            </div>
+        </div>
+
+        <!-- 底部固定保存按钮 -->
+        <div class="footer">
+            <button type="submit" class="btn-submit" id="saveBtn">保存数据</button>
+        </div>
+    </form>
+</div>
+
+<!-- 右下角质疑汇总悬浮按钮和面板 -->
+<div class="query-float-btn" id="queryFloatBtn" onclick="toggleQueryPanel()">
+    💬 <span id="queryFloatCount">0</span>
+</div>
+<div class="query-panel" id="queryPanel">
+    <div class="query-panel-header">
+        <span>⚠️ 待解决质疑</span>
+        <span onclick="toggleQueryPanel()" style="cursor:pointer;">✕</span>
+    </div>
+    <div class="query-panel-body" id="queryPanelList"></div>
+</div>
+
+<!-- 发起质疑弹窗 -->
+<div class="modal-overlay" id="queryOverlay" onclick="closeQueryModal()"></div>
+<div class="modal" id="queryModal">
+    <h3>发起数据质疑 (Query)</h3>
+    <p style="font-size:12px; color:#666; margin-bottom:8px;">字段：<span id="queryFieldName" style="font-weight:bold; color:#007bff;"></span></p>
+    <textarea id="queryText" placeholder="请输入质疑内容（例如：血压值异常，请核对原图）"></textarea>
+    <div class="modal-btns">
+        <button type="button" class="btn-modal-cancel" onclick="closeQueryModal()">取消</button>
+        <button type="button" class="btn-modal-submit" onclick="submitQuery()">提交质疑</button>
+    </div>
+</div>
+
+<!-- 全局 Loading -->
+<div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <div style="color:#007bff; font-weight:bold;" id="loadingText">AI 正在识别图片，请稍候...</div>
+</div>
+
+<script>
+    // ================= 初始化与状态 =================
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentUser = urlParams.get('user') || '创建者';
+    const currentCenter = urlParams.get('center') || '默认中心';
+    
+    const pathParts = location.pathname.split('/');
+    let projectId = null;
+    let patientId = null;
+
+    if (pathParts.includes('project')) {
+        projectId = pathParts[pathParts.indexOf('project') + 1];
+    } else if (pathParts.includes('patient')) {
+        patientId = pathParts[pathParts.indexOf('patient') + 1];
+        document.getElementById('pageTitle').textContent = '编辑患者数据';
+    }
+
+    let currentFields = []; 
+    let isBasicLocked = false;
+    let isFieldsLocked = false;
+    
+    let currentQueries = []; 
+    let activeQueryFieldId = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const bar = document.getElementById('operatorBar');
+        const text = document.getElementById('operatorText');
+        if (bar && text) {
+            text.innerHTML = `👤 操作者：<b style="color:#d93025;">${currentUser}</b> (${currentCenter})`;
+            bar.style.display = 'flex';
+        }
+
+        if (patientId) {
+            loadPatientData();
+        }
+    });
+
+    // ================= 日期格式化 =================
+    function formatDateForInput(dateStr) {
+        if (!dateStr) return '';
+        let cleanStr = dateStr.replace(/[^\d]/g, '-');
+        cleanStr = cleanStr.replace(/-+/g, '-').replace(/^-|-$/g, '');
+        const parts = cleanStr.split('-');
+        if (parts.length === 3) {
+            const y = parts[0];
+            const m = parts[1].padStart(2, '0');
+            const d = parts[2].padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        return ''; 
+    }
+
+    // ================= 锁定/解锁逻辑 =================
+    function toggleLock(type) {
+        if (type === 'basic') {
+            isBasicLocked = !isBasicLocked;
+            updateLockUI('basic', isBasicLocked);
+        } else {
+            isFieldsLocked = !isFieldsLocked;
+            updateLockUI('fields', isFieldsLocked);
+            renderFields(); 
+        }
+    }
+
+    function updateLockUI(type, isLocked) {
+        const btnId = type === 'basic' ? 'lockBasicBtn' : 'lockFieldsBtn';
+        const btn = document.getElementById(btnId);
+        
+        if (isLocked) {
+            btn.innerHTML = '🔒 已锁定';
+            btn.classList.add('locked');
+        } else {
+            btn.innerHTML = '🔓 解锁编辑';
+            btn.classList.remove('locked');
+        }
+
+        if (type === 'basic') {
+            document.querySelectorAll('.basic-input').forEach(el => {
+                el.disabled = isLocked;
+            });
+        }
+    }
+
+    // ================= 质疑汇总面板逻辑 =================
+    function toggleQueryPanel() {
+        const panel = document.getElementById('queryPanel');
+        if (panel.style.display === 'none' || panel.style.display === '') {
+            panel.style.display = 'flex';
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    function updateQuerySummary() {
+        const openQueries = currentQueries.filter(q => q.status === 'open');
+        const counter = document.getElementById('queryCount');
+        const floatBtn = document.getElementById('queryFloatBtn');
+        const floatCount = document.getElementById('queryFloatCount');
+        const panelList = document.getElementById('queryPanelList');
+
+        if (openQueries.length > 0) {
+            counter.textContent = `(有 ${openQueries.length} 个未解决质疑)`;
+            counter.style.color = '#cf1322';
+            counter.style.fontWeight = 'bold';
+            
+            floatBtn.style.display = 'flex';
+            floatCount.textContent = openQueries.length;
+            
+            panelList.innerHTML = openQueries.map(q => {
+                const field = currentFields.find(f => f.field_id === q.fieldId);
+                const fieldName = field ? field.field_name : '未知字段';
+                return `
+                    <div class="query-panel-item">
+                        <div style="font-weight:bold; color:#cf1322;">${fieldName}</div>
+                        <div style="margin:4px 0; color:#333;">${q.content}</div>
+                        <div style="color:#888; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>由 ${q.creator} 提出</span>
+                            <span class="btn-resolve" onclick="resolveQuery('${q.fieldId}')">去解决</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            counter.textContent = '';
+            floatBtn.style.display = 'none';
+            panelList.innerHTML = '<div style="text-align:center; padding:20px; color:#999; font-size:13px;">暂无未解决的质疑</div>';
+            document.getElementById('queryPanel').style.display = 'none';
+        }
+    }
+
+    function openQueryModal(fieldId, fieldName) {
+        activeQueryFieldId = fieldId;
+        document.getElementById('queryFieldName').textContent = fieldName;
+        document.getElementById('queryText').value = '';
+        document.getElementById('queryOverlay').style.display = 'block';
+        document.getElementById('queryModal').style.display = 'block';
+    }
+
+    function closeQueryModal() {
+        document.getElementById('queryOverlay').style.display = 'none';
+        document.getElementById('queryModal').style.display = 'none';
+    }
+
+    function submitQuery() {
+        const text = document.getElementById('queryText').value.trim();
+        if (!text) return alert('请输入质疑内容');
+        
+        currentQueries.push({
+            fieldId: activeQueryFieldId,
+            content: text,
+            creator: currentUser,
+            time: new Date().toLocaleTimeString(),
+            status: 'open'
+        });
+
+        closeQueryModal();
+        renderFields(); 
+    }
+
+    function resolveQuery(fieldId) {
+        if (!confirm('确定该数据已核对并解决质疑吗？')) return;
+        currentQueries.forEach(q => {
+            if (q.fieldId === fieldId && q.status === 'open') {
+                q.status = 'resolved';
+            }
+        });
+        renderFields();
+    }
+
+    // ================= 系统质疑规则 =================
+    function checkSystemQuery(fieldName, value) {
+        if (!value) return '';
+        const numVal = parseFloat(value);
+        if (isNaN(numVal)) return '';
+
+        if (fieldName.includes('体温') && (numVal < 30 || numVal > 42)) {
+            return '系统质疑：体温极度异常(>42或<30)，请核对！';
+        }
+        if (fieldName.includes('心率') && (numVal < 20 || numVal > 250)) {
+            return '系统质疑：心率异常，请核对！';
+        }
+        if (fieldName.includes('收缩压') && (numVal < 40 || numVal > 300)) {
+            return '系统质疑：收缩压异常，请核对！';
+        }
+        if (fieldName.includes('舒张压') && (numVal < 20 || numVal > 200)) {
+            return '系统质疑：舒张压异常，请核对！';
+        }
+        return '';
+    }
+
+    // 实时输入触发（仅处理系统红框）
+    function handleInputChange(index, element) {
+        const val = element.value;
+        currentFields[index].value = val;
+
+        const sysMsg = checkSystemQuery(currentFields[index].field_name, val);
+        const msgEl = element.parentElement.parentElement.querySelector('.system-query-text');
+        
+        if (sysMsg) {
+            element.classList.add('input-error');
+            msgEl.textContent = sysMsg;
+            msgEl.style.display = 'block';
+        } else {
+            element.classList.remove('input-error');
+            msgEl.style.display = 'none';
+        }
+    }
+
+    // 失焦触发（处理人工质疑的自动解除）
+    function handleFinalChange(index, element) {
+        const fieldId = currentFields[index].field_id;
+        let hasResolved = false;
+
+        // 查找该字段是否有未解决的人工质疑
+        currentQueries.forEach(q => {
+            if (q.fieldId === fieldId && q.status === 'open') {
+                q.status = 'resolved';
+                hasResolved = true;
+            }
+        });
+
+        if (hasResolved) {
+            // 如果修改了数据，自动把质疑标记为已解决并重新渲染
+            renderFields();
+        }
+    }
+
+    // ================= 清空表单 =================
+    function clearAllFields() {
+        if (!confirm('确定要清空所有识别出的数据吗？')) return;
+        if (!isBasicLocked) {
+            document.getElementById('hospital_id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('gender').value = '';
+            document.getElementById('age').value = '';
+            document.getElementById('admission_date').value = '';
+            document.getElementById('discharge_date').value = '';
+        }
+        if (!isFieldsLocked) {
+            currentFields.forEach(f => f.value = '');
+            currentQueries = []; 
+            renderFields();
+        }
+        document.getElementById('imagePreviewContainer').innerHTML = '';
+        document.getElementById('rawTextCard').style.display = 'none';
+    }
+
+    // ================= 加载数据 =================
+    async function loadPatientData() {
+        try {
+            const res = await fetch(`/api/patient/${patientId}`);
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+
+            projectId = data.project_id;
+            document.getElementById('hospital_id').value = data.hospital_id || '';
+            document.getElementById('name').value = data.name || '';
+            document.getElementById('gender').value = data.gender || '';
+            document.getElementById('age').value = data.age || '';
+            document.getElementById('admission_date').value = formatDateForInput(data.admission_date);
+            document.getElementById('discharge_date').value = formatDateForInput(data.discharge_date);
+
+            const projRes = await fetch(`/api/project/${projectId}`);
+            const project = await projRes.json();
+            
+            currentFields = project.fields.map(f => ({
+                field_id: f.id,
+                field_name: f.field_name,
+                field_unit: f.field_unit,
+                field_type: f.field_type,
+                value: data.values[f.id] || ''
+            }));
+            
+            renderFields();
+        } catch (err) {
+            alert('加载患者数据失败');
+        }
+    }
+
+    // ================= 图片上传与 OCR =================
+    async function handleImageUpload(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const forceOverride = document.getElementById('forceOverride').checked;
+        if (forceOverride && !isBasicLocked) {
+            if (!confirm('勾选了“强制覆盖”，新识别的数据将替换原有内容，确定继续吗？')) {
+                event.target.value = '';
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('images', files[i]);
+        }
+
+        document.getElementById('loading').style.display = 'flex';
+        
+        try {
+            const res = await fetch(`/api/project/${projectId}/patient/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                document.getElementById('rawTextCard').style.display = 'block';
+                document.getElementById('rawTextContent').textContent = data.raw_text;
+
+                const imgContainer = document.getElementById('imagePreviewContainer');
+                const newImgsHtml = data.image_urls.map(url => 
+                    `<img src="${url}" onclick="window.open('${url}', '_blank')" title="点击查看大图">`
+                ).join('');
+                imgContainer.insertAdjacentHTML('beforeend', newImgsHtml);
+
+                const info = data.basic_info;
+                if (!isBasicLocked) {
+                    if (info.hospital_id && (forceOverride || !document.getElementById('hospital_id').value)) document.getElementById('hospital_id').value = info.hospital_id;
+                    if (info.name && (forceOverride || !document.getElementById('name').value)) document.getElementById('name').value = info.name;
+                    if (info.gender && (forceOverride || !document.getElementById('gender').value)) document.getElementById('gender').value = info.gender;
+                    if (info.age && (forceOverride || !document.getElementById('age').value)) document.getElementById('age').value = info.age;
+                }
+
+                data.data.forEach(newField => {
+                    if (newField.field_id === -100 || newField.field_id === -101) return;
+                    let existingField = currentFields.find(f => f.field_id === newField.field_id);
+                    if (existingField) {
+                        if (!isFieldsLocked && newField.value && newField.value.trim() !== '') {
+                            if (forceOverride || !existingField.value) {
+                                existingField.value = newField.value;
+                            }
+                        }
+                    } else {
+                        currentFields.push(newField);
+                    }
+                });
+
+                const dateField = data.data.find(f => f.field_id === -100);
+                if (dateField && dateField.value && !isBasicLocked) {
+                    const dateInput = document.getElementById('admission_date');
+                    if (forceOverride || !dateInput.value) dateInput.value = formatDateForInput(dateField.value);
+                }
+                
+                const disDateField = data.data.find(f => f.field_id === -101);
+                if (disDateField && disDateField.value && !isBasicLocked) {
+                    const dateInput = document.getElementById('discharge_date');
+                    if (forceOverride || !dateInput.value) dateInput.value = formatDateForInput(disDateField.value);
+                }
+                
+                renderFields();
+            } else {
+                alert('识别失败：' + (data.error || '未知错误'));
+            }
+        } catch (err) {
+            alert('网络请求失败');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+            event.target.value = ''; 
+        }
+    }
+
+    // ================= 渲染动态字段 =================
+    function renderFields() {
+        const container = document.getElementById('fieldsContainer');
+        if (!currentFields || currentFields.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888; font-size:14px;">暂无指标数据</p>';
+            return;
+        }
+
+        container.innerHTML = currentFields.map((f, index) => {
+            const val = f.value || '';
+            const unitHtml = f.field_unit ? `<span class="field-unit">(${f.field_unit})</span>` : '';
+            const disabledAttr = isFieldsLocked ? 'disabled' : '';
+            
+            // 同时获取该字段 open 和 resolved 的质疑，以便展示历史记录
+            const allFieldQueries = currentQueries.filter(q => q.fieldId === f.field_id);
+            const hasOpenQuery = allFieldQueries.some(q => q.status === 'open');
+            const systemQueryMsg = checkSystemQuery(f.field_name, val);
+            const inputErrorClass = systemQueryMsg ? 'input-error' : '';
+            const queryBtnClass = hasOpenQuery ? 'btn-query active' : 'btn-query';
+
+            let inputHtml = '';
+            if (f.field_type === 'yesno') {
+                inputHtml = `
+                    <select class="form-control ${inputErrorClass}" 
+                            oninput="handleInputChange(${index}, this)" 
+                            onchange="handleFinalChange(${index}, this)" 
+                            ${disabledAttr}>
+                        <option value="">未填写</option>
+                        <option value="是" ${val === '是' ? 'selected' : ''}>是</option>
+                        <option value="否" ${val === '否' ? 'selected' : ''}>否</option>
+                    </select>
+                `;
+            } else {
+                inputHtml = `<input type="text" class="form-control ${inputErrorClass}" 
+                                    value="${val}" 
+                                    oninput="handleInputChange(${index}, this)" 
+                                    onchange="handleFinalChange(${index}, this)" 
+                                    ${disabledAttr}>`;
+            }
+
+            // 渲染质疑气泡（区分是否已解决）
+            let queryBubbleHtml = '';
+            if (allFieldQueries.length > 0) {
+                queryBubbleHtml = allFieldQueries.map(q => {
+                    const isOpen = q.status === 'open';
+                    return `
+                    <div class="query-bubble ${isOpen ? '' : 'resolved'}">
+                        <div class="query-content">${isOpen ? '💬' : '✓'} ${q.content}</div>
+                        <div class="query-meta">
+                            <span>提出者: ${q.creator} (${q.time})</span>
+                            ${isOpen ? `<span class="btn-resolve" onclick="resolveQuery('${f.field_id}')">标记已解决</span>` : '<span style="color:#52c41a;">已修改/已确认</span>'}
+                        </div>
+                    </div>
+                `}).join('');
+            }
+
+            return `
+                <div class="field-item">
+                    <div class="field-header">
+                        <label class="field-label">${f.field_name} ${unitHtml}</label>
+                    </div>
+                    <div class="field-input-row">
+                        ${inputHtml}
+                        <button type="button" class="${queryBtnClass}" onclick="openQueryModal('${f.field_id}', '${f.field_name}')" title="发起质疑/核对">💬</button>
+                    </div>
+                    <div class="system-query-text" style="display: ${systemQueryMsg ? 'block' : 'none'};">${systemQueryMsg}</div>
+                    ${queryBubbleHtml}
+                </div>
+            `;
+        }).join('');
+        updateQuerySummary();
+    }
+
+    function toggleRawText() {
+        const content = document.getElementById('rawTextContent');
+        const icon = document.getElementById('rawTextToggleIcon');
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.textContent = '收起';
+        } else {
+            content.style.display = 'none';
+            icon.textContent = '展开';
+        }
+    }
+
+    // ================= 保存数据 =================
+    async function savePatient(e) {
+        e.preventDefault();
+        
+        const hospital_id = document.getElementById('hospital_id').value.trim();
+        if (!hospital_id) return alert('住院号不能为空！');
+
+        const openQueries = currentQueries.filter(q => q.status === 'open');
+        if (openQueries.length > 0) {
+            if (!confirm(`当前还有 ${openQueries.length} 个未解决的人工质疑，确定要继续保存吗？`)) {
+                return;
+            }
+        }
+
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+
+        const basic = {
+            hospital_id: hospital_id,
+            name: document.getElementById('name').value.trim(),
+            gender: document.getElementById('gender').value,
+            age: document.getElementById('age').value.trim(),
+            admission_date: document.getElementById('admission_date').value.trim(),
+            discharge_date: document.getElementById('discharge_date').value.trim()
+        };
+
+        const values = currentFields
+            .filter(f => f.field_id)
+            .map(f => ({
+                field_id: f.field_id,
+                value: f.value || ''
+            }));
+
+        const payload = {
+            patient_id: patientId,
+            basic: basic,
+            values: values,
+            operator_name: currentUser,     
+            operator_center: currentCenter,
+            queries: currentQueries 
+        };
+
+        try {
+            const res = await fetch(`/api/project/${projectId}/patient/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                alert('保存成功！');
+                location.href = `/project/${projectId}?user=${encodeURIComponent(currentUser)}&center=${encodeURIComponent(currentCenter)}`;
+            } else {
+                alert('保存失败：' + (data.error || '未知错误'));
+            }
+        } catch (err) {
+            alert('网络请求失败');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '保存数据';
+        }
+    }
+</script>
+</body>
+</html>
