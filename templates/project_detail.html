@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 16px; }
+        .container { max-width: 480px; margin: 0 auto; }
+        h1 { font-size: 20px; color: #1a3a5c; margin-bottom: 4px; }
+        .desc { font-size: 13px; color: #8c8f9c; margin-bottom: 16px; }
+        
+        /* 身份切换栏 */
+        .operator-bar { 
+            background: #e8f0fe; color: #1a73e8; padding: 10px 12px; 
+            border-radius: 8px; font-size: 13px; font-weight: bold; 
+            margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .operator-bar select {
+            border: 1px solid #b3d4ff; border-radius: 6px; padding: 4px 8px;
+            background: #fff; color: #1a3a5c; font-size: 13px; outline: none;
+            max-width: 150px;
+        }
+
+        .section {
+            background: white; border-radius: 12px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .section-title { font-size: 15px; font-weight: 600; color: #1a3a5c; margin-bottom: 10px; }
+        .field-tag {
+            display: inline-block; background: #e8f4ff; color: #1a73e8;
+            padding: 4px 10px; border-radius: 6px; font-size: 13px;
+            margin: 0 6px 6px 0;
+        }
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+        }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-secondary { background: #e8ecf0; color: #1a3a5c; }
+        .btn-warning { background: #ff9800; color: white; }
+        .empty { color: #8c8f9c; font-size: 14px; text-align: center; padding: 20px 0; }
+        
+        .patient-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; background: #f8f9fb; border-radius: 8px;
+            margin-bottom: 8px; cursor: pointer;
+        }
+        .patient-item:active { background: #eef1f5; }
+        .patient-left { display: flex; flex-direction: column; gap: 4px; }
+        .patient-id { font-weight: 600; color: #1a3a5c; font-size: 15px; }
+        .patient-sub { font-size: 12px; color: #8c8f9c; }
+        .patient-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
+        .status-done { color: #07c160; font-size: 12px; font-weight: 600; }
+        .status-todo { color: #ff9800; font-size: 12px; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 id="projectName">加载中...</h1>
+    <div class="desc" id="projectDesc"></div>
+
+    <!-- 身份切换栏 -->
+    <div class="operator-bar" id="operatorBar" style="display: none;">
+        <span>👤 当前操作者:</span>
+        <select id="userSwitcher" onchange="switchUser()">
+            <option value="">加载中...</option>
+        </select>
+    </div>
+
+    <div class="section">
+        <div class="section-title">📋 表头字段</div>
+        <div id="fieldList"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">👥 患者数据</div>
+        <div id="patientList" class="empty">加载中...</div>
+    </div>
+
+    <button class="btn btn-warning" onclick="document.getElementById('importInput').click()">📥 导入患者名单（Excel）</button>
+    <input type="file" id="importInput" accept=".xlsx,.xls" style="display:none">
+
+    <button class="btn btn-primary" onclick="goToUpload()">📷 新增患者（直接录入）</button>
+    <button class="btn btn-primary" style="background:#007bff; color:white;" onclick="location.href='/project/' + projectId + '/members'">👥 成员协作</button>
+    <button class="btn btn-secondary" onclick="exportExcel()">📥 导出 Excel</button>
+    <button class="btn btn-secondary" onclick="location.href='/projects'">← 返回项目列表</button>
+</div>
+
+<script>
+    const projectId = location.pathname.split('/').pop();
+
+    // 解析 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentUser = urlParams.get('user') || '创建者';
+    let currentCenter = urlParams.get('center') || '默认中心';
+
+    // 页面初始化
+    document.addEventListener("DOMContentLoaded", async () => {
+        document.getElementById('operatorBar').style.display = 'flex';
+        await loadMembersForSwitcher(); // 加载成员列表填充下拉框
+        
+        // 设置下拉框的默认选中项
+        const switcher = document.getElementById('userSwitcher');
+        const currentValue = `${currentUser}|${currentCenter}`;
+        
+        // 如果下拉框里没有当前的值（比如是创建者），就手动加上
+        if (!Array.from(switcher.options).some(opt => opt.value === currentValue)) {
+            const opt = document.createElement('option');
+            opt.value = currentValue;
+            opt.textContent = `${currentUser} (${currentCenter})`;
+            switcher.appendChild(opt);
+        }
+        switcher.value = currentValue;
+    });
+
+    // 加载成员数据到下拉框
+    async function loadMembersForSwitcher() {
+        try {
+            const res = await fetch(`/api/project/${projectId}/members`);
+            const members = await res.json();
+            const switcher = document.getElementById('userSwitcher');
+            
+            // 清空除了加载中以外的选项
+            switcher.innerHTML = '';
+
+            // 默认加一个创建者选项
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = `创建者|默认中心`;
+            defaultOpt.textContent = `👑 创建者 (默认中心)`;
+            switcher.appendChild(defaultOpt);
+
+            // 遍历成员加入下拉框
+            members.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = `${m.name}|${m.center || '未分类'}`;
+                opt.textContent = `${m.name} (${m.center || '未分类'})`;
+                switcher.appendChild(opt);
+            });
+        } catch (err) {
+            console.error("加载成员列表失败", err);
+        }
+    }
+
+    // 切换身份时触发：修改 URL 并刷新页面
+    function switchUser() {
+        const switcher = document.getElementById('userSwitcher');
+        const [newUser, newCenter] = switcher.value.split('|');
+        
+        // 构建新的 URL
+        const newUrl = `/project/${projectId}?user=${encodeURIComponent(newUser)}&center=${encodeURIComponent(newCenter)}`;
+        
+        // 刷新页面（这会自动带上新身份去请求数据）
+        window.location.href = newUrl;
+    }
+
+    // ================= 原有的数据加载逻辑 =================
+    async function loadProject() {
+        try {
+            const res = await fetch('/api/project/' + projectId);
+            if (!res.ok) throw new Error('请求失败，状态码：' + res.status);
+            const p = await res.json();
+            document.getElementById('projectName').textContent = p.name;
+            document.getElementById('projectDesc').textContent = p.description || '';
+            document.getElementById('fieldList').innerHTML = p.fields.map(f =>
+                `<span class="field-tag">${f.field_name}${f.field_unit ? ' (' + f.field_unit + ')' : ''}</span>`
+            ).join('');
+        } catch (err) {
+            document.getElementById('projectName').textContent = '加载项目失败';
+            document.getElementById('fieldList').innerHTML = `<div class="error-text" style="color:red; text-align:center;">${err.message}</div>`;
+        }
+    }
+
+    async function loadPatients() {
+        try {
+            const res = await fetch(`/api/project/${projectId}/patients`);
+            if (!res.ok) throw new Error('请求失败，状态码：' + res.status);
+            const data = await res.json();
+            const list = document.getElementById('patientList');
+
+            if (!data.patients || data.patients.length === 0) {
+                list.innerHTML = '<div class="empty">还没有患者数据</div>';
+                return;
+            }
+
+            list.innerHTML = data.patients.map(p => `
+                <div class="patient-item" onclick="editPatient(${p.id})">
+                    <div class="patient-left">
+                        <div class="patient-id">${p.hospital_id || p.patient_code || '未命名'}</div>
+                        <div class="patient-sub">${p.name || ''} ${p.gender || ''} ${p.age || ''}</div>
+                        <div class="patient-meta">录入：${p.created_by || '未知'} (${p.center || '未分类'})</div>
+                    </div>
+                    <div>
+                        ${p.has_data ? '<span class="status-done">● 已录入</span>' : '<span class="status-todo">● 待录入</span>'}
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            document.getElementById('patientList').innerHTML = `<div class="error-text" style="color:red; text-align:center;">${err.message}</div>`;
+        }
+    }
+
+    // ================= 页面跳转及操作 =================
+    function editPatient(id) {
+        location.href = `/patient/${id}/edit?user=${encodeURIComponent(currentUser)}&center=${encodeURIComponent(currentCenter)}`;
+    }
+
+    function goToUpload() {
+        location.href = `/project/${projectId}/patient/upload?user=${encodeURIComponent(currentUser)}&center=${encodeURIComponent(currentCenter)}`;
+    }
+
+    document.getElementById('importInput').addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('excel', file);
+
+        try {
+            const res = await fetch(`/api/project/${projectId}/import_patients`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`成功导入 ${data.count} 个患者`);
+                loadPatients();
+            } else {
+                alert('导入失败：' + (data.error || ''));
+            }
+        } catch (err) {
+            alert('上传失败：' + err.message);
+        }
+        this.value = '';
+    });
+
+    function exportExcel() {
+        window.location.href = '/api/project/' + projectId + '/export';
+    }
+    
+    // 运行加载
+    loadProject();
+    loadPatients();
+</script>
+</body>
+</html>
